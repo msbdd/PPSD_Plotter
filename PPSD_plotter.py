@@ -6,6 +6,7 @@ from obspy.imaging.cm import pqlx
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import sys
+from tqdm import tqdm
 
 
 def load_config(path):
@@ -30,20 +31,26 @@ def calculate_ppsd(workdir, channel, inv, tw):
     outdir = workdir / f"npz_{channel}"
     outdir.mkdir(exist_ok=True)
 
-    for file in workdir.rglob("*"):
-        if file.suffix.lower() in [".msd", ".miniseed", ".mseed"]:
-            try:
-                st = read(str(file))
-                for trace in st.select(channel=channel):
-                    ppsd = PPSD(trace.stats, metadata=inv, ppsd_length=tw)
-                    ppsd.add(trace)
-                    timestamp = trace.stats.starttime.strftime(
-                        '%y-%m-%d_%H-%M-%S.%f'
+    files = [
+        f for f in workdir.rglob("*")
+        if f.suffix.lower() in [".msd", ".miniseed", ".mseed"]
+    ]
+
+    for file in tqdm(
+            files, desc=f"[{workdir.name} | {channel}] PSD files", unit="file"
+            ):
+        try:
+            st = read(str(file))
+            for trace in st.select(channel=channel):
+                ppsd = PPSD(trace.stats, metadata=inv, ppsd_length=tw)
+                ppsd.add(trace)
+                timestamp = trace.stats.starttime.strftime(
+                    '%y-%m-%d_%H-%M-%S.%f'
                     )
-                    outfile = outdir / f"{timestamp}.npz"
-                    ppsd.save_npz(str(outfile))
-            except Exception as e:
-                print(f"Error processing {file}: {e}")
+                outfile = outdir / f"{timestamp}.npz"
+                ppsd.save_npz(str(outfile))
+        except Exception as e:
+            print(f"Error processing {file}: {e}")
 
 
 def plot_ppsd(sampledata, channel, inv, npzfolder, output_folder, tw):
@@ -75,8 +82,9 @@ def convert_npz_to_text(npzdir):
 
     psd_entries = []
     periods_struct = None
+    files = list(npzdir.glob("*.npz"))
 
-    for file in npzdir.glob("*.npz"):
+    for file in tqdm(files, desc=f"[{npzdir.name}] Converting", unit="file"):
         data = np.load(file, allow_pickle=True)
         periods = np.asarray(data["_period_binning"]).flatten()
         psd_values = np.asarray(data["_binned_psds"]).astype(float)
@@ -110,7 +118,7 @@ def process_dataset(entry, tw):
     resp_file = entry["response"]
     channels = entry["channels"]
     output_folder = entry.get("output_folder", folder)
-    action = str(entry.get("action", "3"))
+    action = str(entry.get("action", "full"))
 
     try:
         inv = read_inventory(resp_file)
@@ -122,17 +130,17 @@ def process_dataset(entry, tw):
         print(f"===> {folder} | {channel} | action={action}")
         npzfolder = Path(folder) / f"npz_{channel}"
 
-        if action in ["1", "3"]:
+        if action in ["calculate", "full"]:
             calculate_ppsd(folder, channel, inv, tw)
 
-        if action in ["2", "3"]:
+        if action in ["plot", "full"]:
             sample = find_miniseed(folder, channel)
             if sample:
                 plot_ppsd(sample, channel, inv, npzfolder, output_folder, tw)
             else:
                 print(f"No valid trace found in {folder} for {channel}")
 
-        if action == "4":
+        if action == "convert":
             convert_npz_to_text(npzfolder)
 
 
@@ -146,9 +154,11 @@ def main(config_path):
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = [
             executor.submit(process_dataset, entry, tw)
-            for entry in datasets
+            for entry in tqdm(
+                datasets, desc="Submitting tasks", unit="dataset"
+                )
         ]
-        for future in futures:
+        for future in tqdm(futures, desc="Processing datasets", unit="task"):
             future.result()
 
 
