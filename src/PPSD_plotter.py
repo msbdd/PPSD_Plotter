@@ -7,11 +7,34 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import sys
 from tqdm import tqdm
+import matplotlib
+matplotlib.use("Agg")
 
 
 def load_config(path):
     with open(path, 'r') as f:
         return yaml.safe_load(f)
+
+
+def load_inventory(resp_file):
+    ext = Path(resp_file).suffix.lower()
+
+    if ext in ['.seed', '.dataless']:
+        fmt = "SEED"
+    elif ext == '.xml':
+        fmt = "STATIONXML"
+    else:
+        fmt = None
+
+    try:
+        if fmt:
+            inv = read_inventory(resp_file, format=fmt)
+        else:
+            inv = read_inventory(resp_file)
+        return inv
+    except Exception as e:
+        print(f"Failed to read inventory {resp_file}: {e}")
+        return
 
 
 def find_miniseed(workdir, channel):
@@ -119,11 +142,9 @@ def process_dataset(entry, tw):
     channels = entry["channels"]
     output_folder = entry.get("output_folder", folder)
     action = str(entry.get("action", "full"))
-
-    try:
-        inv = read_inventory(resp_file)
-    except Exception as e:
-        print(f"Failed to read inventory {resp_file}: {e}")
+    inv = load_inventory(resp_file)
+    if not inv:
+        print(f"Failed to read inventory {resp_file}")
         return
 
     for channel in channels:
