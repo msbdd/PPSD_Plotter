@@ -91,11 +91,14 @@ def plot_ppsd(sampledata, channel, inv, npzfolder, output_folder, tw):
     output_folder.mkdir(parents=True, exist_ok=True)
 
     figfile = output_folder / f"{trace.id}.png"
-    fig = ppsd.plot(cmap=pqlx, show_mean=True, show_histogram=True,
-                    xaxis_frequency=True, show_mode=True, show=False)
-    fig.set_size_inches(12, 6)
-    fig.savefig(figfile, dpi=300)
-    print(f"Saved plot: {figfile}")
+    try:
+        fig = ppsd.plot(cmap=pqlx, show_mean=True, show_histogram=True,
+                        xaxis_frequency=True, show_mode=True, show=False)
+        fig.set_size_inches(12, 6)
+        fig.savefig(figfile, dpi=300)
+        print(f"Saved plot: {figfile}")
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 def convert_npz_to_text(npzdir):
