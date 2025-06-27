@@ -1,6 +1,7 @@
 # 3600 should be used as a default; 60 is used for a small example dataset
 timewindow: 600
 num_workers: 2
+units: hz
 
 datasets:
 

@@ -76,7 +76,7 @@ def calculate_ppsd(workdir, channel, inv, tw):
             print(f"Error processing {file}: {e}")
 
 
-def plot_ppsd(sampledata, channel, inv, npzfolder, output_folder, tw):
+def plot_ppsd(sampledata, channel, inv, npzfolder, output_folder, tw, units):
     st = read(sampledata)
     trace = st.select(channel=channel)[0]
     ppsd = PPSD(trace.stats, inv, ppsd_length=tw)
@@ -93,7 +93,7 @@ def plot_ppsd(sampledata, channel, inv, npzfolder, output_folder, tw):
     figfile = output_folder / f"{trace.id}.png"
     try:
         fig = ppsd.plot(cmap=pqlx, show_mean=True, show_histogram=True,
-                        xaxis_frequency=True, show_mode=True, show=False)
+                        xaxis_frequency=units, show_mode=True, show=False)
         fig.set_size_inches(12, 6)
         fig.savefig(figfile, dpi=300)
         print(f"Saved plot: {figfile}")
@@ -139,7 +139,7 @@ def convert_npz_to_text(npzdir):
         print("No PSD entries found.")
 
 
-def process_dataset(entry, tw):
+def process_dataset(entry, tw, units):
     folder = entry["folder"]
     resp_file = entry["response"]
     channels = entry["channels"]
@@ -160,7 +160,9 @@ def process_dataset(entry, tw):
         if action in ["plot", "full"]:
             sample = find_miniseed(folder, channel)
             if sample:
-                plot_ppsd(sample, channel, inv, npzfolder, output_folder, tw)
+                plot_ppsd(
+                    sample, channel, inv, npzfolder, output_folder, tw, units
+                    )
             else:
                 print(f"No valid trace found in {folder} for {channel}")
 
@@ -172,12 +174,17 @@ def main(config_path):
     config = load_config(config_path)
     tw = config["timewindow"]
     num_workers = config.get("num_workers", 1)
+    units = config.get("units", "s").lower()
+    if units == "hz":
+        units = True
+    else:
+        units = False
 
     datasets = config["datasets"]
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = [
-            executor.submit(process_dataset, entry, tw)
+            executor.submit(process_dataset, entry, tw, units)
             for entry in tqdm(
                 datasets, desc="Submitting tasks", unit="dataset"
                 )

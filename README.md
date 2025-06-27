@@ -1,4 +1,14 @@
 # PPSD Plotting Script
+
+[![PPSD_Plotter Test Linux](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Linux.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Linux.yml)
+[![PPSD_Plotter Test Windows](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Windows.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Windows.yml)
+[![PPSD_Plotter Test MacOS](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_MacOS.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_MacOS.yml)
+![Python versions:](https://img.shields.io/badge/python-3.8_%7C_3.9_%7C_3.10_%7C_3.11_%7C_3.12%7C_3.13-blue?)
+<br>
+![License: GPL v3](https://img.shields.io/badge/License-GPLv3-brightgreen.svg)
+![Code style: flake8](https://img.shields.io/badge/Code%20style-flake8-brightgreen)
+
+
 ~~<sup>(Because I am tired to always re-write the same code when I do need to plot PPSD)</sup>~~
 
 This script automates the calculation, plotting, and export of Power Spectral Density (PPSD) data from seismic waveform files using [ObsPy](https://docs.obspy.org). It is designed to process many datasets using a simple YAML configuration and parallel execution.
@@ -36,6 +46,7 @@ The script uses a YAML file to define how each dataset is processed.
 ```
 timewindow: 3600           # PPSD time window in seconds
 num_workers: 4             # Number of jobs to run in parallel
+units: hz
 
 datasets:
   - folder: "data/st01"              # Path to waveform files (.mseed, .miniseed, .msd)
