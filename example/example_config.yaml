@@ -1,0 +1,17 @@
+# 3600 should be used as a default; 60 is used for a small example dataset
+timewindow: 600
+num_workers: 2
+
+datasets:
+
+  - folder: "example/IU.ANMO..D"
+    response: "example/IU_ANMO_RESP.xml"
+    channels: ["BHZ", "BH1", "BH2"]
+    action: full
+    output_folder: "example/result"
+
+  - folder: "example/IU.GRFO..D"
+    response: "example/IU_GRFO_RESP.xml"
+    channels: ["BHZ", "BH1", "BH2"]
+    action: full
+    output_folder: "example/result"
