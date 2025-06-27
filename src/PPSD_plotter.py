@@ -183,7 +183,11 @@ def main(config_path):
                 )
         ]
         for future in tqdm(futures, desc="Processing datasets", unit="task"):
-            future.result()
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Task failed: {e}")
+                raise
 
 
 if __name__ == "__main__":
