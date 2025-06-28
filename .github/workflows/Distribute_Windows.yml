@@ -40,7 +40,7 @@ jobs:
         pytest
 
     - name: Get version from tag
-      run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+      run: echo "VERSION=${{ github.ref_name }}" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     - name: Debug VERSION
       run: echo "VERSION=$env:VERSION"
