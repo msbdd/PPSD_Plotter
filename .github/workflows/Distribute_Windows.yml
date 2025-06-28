@@ -18,6 +18,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     - name: Set up Python 3.8
       uses: actions/setup-python@v5
       with:
@@ -39,6 +41,9 @@ jobs:
     - name: Get version from git tag
       id: get_version
       run: echo "VERSION=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+    - name: Debug VERSION
+      run: echo "VERSION=$env:VERSION"
 
     - name: Replace version in setup.py
       run: |

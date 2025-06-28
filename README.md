@@ -8,6 +8,7 @@
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-brightgreen.svg)
 ![Code style: flake8](https://img.shields.io/badge/Code%20style-flake8-brightgreen)
 
+[![PPSD_Plotter Build Windows](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Distribute_Windows.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Distribute_Windows.yml)
 
 ~~<sup>(Because I am tired to always re-write the same code when I do need to plot PPSD)</sup>~~
 
