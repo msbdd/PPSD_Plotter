@@ -1,21 +1,18 @@
 import sys
 import os
 if getattr(sys, 'frozen', False):
-    import pkg_resources
-    from pathlib import Path
-
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
-    colormap_path = os.path.join(base_path, "lib", "obspy", "imaging", "data")
-
-    def fake_resource_filename(package, resource):
-        if package == "obspy.imaging.data":
-            return os.path.join(colormap_path, resource)
-        return pkg_resources.resource_filename(package, resource)
-
-    pkg_resources.resource_filename = fake_resource_filename
-
+    import matplotlib
+    mpl_data_dir = os.path.join(
+        os.path.dirname(sys.executable), "lib", "matplotlib", "mpl-data"
+        )
+    matplotlib.get_data_path = lambda: mpl_data_dir
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    plt.get_cmap("viridis")
 else:
-    from pathlib import Path
+    import matplotlib
+    matplotlib.use("Agg")
+from pathlib import Path
 import yaml
 import numpy as np
 from obspy import read, read_inventory
@@ -23,8 +20,6 @@ from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
-import matplotlib
-matplotlib.use("Agg")
 
 
 def load_config(path):
