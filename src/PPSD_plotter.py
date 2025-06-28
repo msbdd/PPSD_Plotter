@@ -4,14 +4,20 @@ if getattr(sys, 'frozen', False):
     import matplotlib
     mpl_data_dir = os.path.join(
         os.path.dirname(sys.executable), "lib", "matplotlib", "mpl-data"
-        )
+    )
     matplotlib.get_data_path = lambda: mpl_data_dir
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    plt.get_cmap("viridis")
+    for cmap_name in ['viridis', 'plasma', 'inferno', 'magma', 'cividis']:
+        try:
+            plt.get_cmap(cmap_name)
+        except Exception as e:
+            print(f"Could not register colormap {cmap_name}: {e}")
+    print(plt.colormaps())
 else:
     import matplotlib
     matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
 from pathlib import Path
 import yaml
 import numpy as np
