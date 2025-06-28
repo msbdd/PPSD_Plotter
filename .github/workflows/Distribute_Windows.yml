@@ -55,11 +55,11 @@ jobs:
 
     - name: Rename build output
       run: |
-        Move-Item build\PPSD_Plotter_Windows build\PPSD_Plotter_${env:VERSION}_Windows
+        Move-Item build\PPSD_Plotter_Windows ("build\PPSD_Plotter_" + $env:VERSION + "_Windows")
 
     - name: Create distribution archive
       run: |
-        Compress-Archive -Path build\PPSD_Plotter_${env:VERSION}_Windows -DestinationPath PPSD_Plotter_${env:VERSION}_Windows.zip
+        Compress-Archive -Path ("build\PPSD_Plotter_" + $env:VERSION + "_Windows") -DestinationPath ("PPSD_Plotter_" + $env:VERSION + "_Windows.zip")
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
