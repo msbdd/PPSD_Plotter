@@ -1,34 +1,57 @@
 import sys
 import os
 if getattr(sys, 'frozen', False):
-    import matplotlib
-    mpl_data_dir = os.path.join(
-        os.path.dirname(sys.executable), "lib", "matplotlib", "mpl-data"
-    )
-    matplotlib.get_data_path = lambda: mpl_data_dir
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-    # Patch: create cmap_d if missing
-    if not hasattr(cm, "cmap_d"):
-        cm.cmap_d = {}
-    for cmap_name in ['viridis', 'plasma', 'inferno', 'magma', 'cividis']:
-        cmap = plt.get_cmap(cmap_name)
-        cm.cmap_d[cmap_name] = cmap
-        cm.cmap_d[cmap_name + '_r'] = cmap.reversed()
-    print("Registered colormaps:", list(cm.cmap_d.keys()))
+    import obspy.imaging.cm as obspy_cm
+    import numpy as np
+    from matplotlib.colors import LinearSegmentedColormap, ListedColormap
+    from pathlib import Path
+
+    def _frozen_get_cmap(file_name, lut=None, reverse=False):
+        file_name = file_name.strip()
+        file_path = Path(file_name)
+        name = str(file_path.parent / file_path.stem)
+        suffix = file_path.suffix
+        # Patch: point to the bundled data directory in the frozen build
+        directory = os.path.join(
+            os.path.dirname(sys.executable), "lib", "obspy", "imaging", "data"
+            )
+        full_path = os.path.join(directory, file_name)
+        if reverse:
+            name += "_r"
+        if suffix == '.npz':
+            data = dict(np.load(full_path))
+            if reverse:
+                data_r = {}
+                for key, val in data.items():
+                    data_r[key] = [
+                        (1.0 - x, y1, y0) for x, y0, y1 in reversed(val)
+                        ]
+                data = data_r
+            kwargs = lut and {"N": lut} or {}
+            cmap = LinearSegmentedColormap(
+                name=name, segmentdata=data, **kwargs
+                )
+        elif suffix == '.npy':
+            data = np.load(full_path)
+            if reverse:
+                data = data[::-1]
+            cmap = ListedColormap(data, name=name)
+        else:
+            raise ValueError('file suffix {} not recognized.'.format(suffix))
+        return cmap
+
+    obspy_cm._get_cmap = _frozen_get_cmap
 else:
+    from pathlib import Path
+    import numpy as np
     import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-from pathlib import Path
 import yaml
-import numpy as np
 from obspy import read, read_inventory
 from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
+matplotlib.use("Agg")
 
 
 def load_config(path):
