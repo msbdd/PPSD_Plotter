@@ -8,12 +8,15 @@ if getattr(sys, 'frozen', False):
     matplotlib.get_data_path = lambda: mpl_data_dir
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    # Patch: create cmap_d if missing
+    if not hasattr(cm, "cmap_d"):
+        cm.cmap_d = {}
     for cmap_name in ['viridis', 'plasma', 'inferno', 'magma', 'cividis']:
-        try:
-            plt.get_cmap(cmap_name)
-        except Exception as e:
-            print(f"Could not register colormap {cmap_name}: {e}")
-    print(plt.colormaps())
+        cmap = plt.get_cmap(cmap_name)
+        cm.cmap_d[cmap_name] = cmap
+        cm.cmap_d[cmap_name + '_r'] = cmap.reversed()
+    print("Registered colormaps:", list(cm.cmap_d.keys()))
 else:
     import matplotlib
     matplotlib.use("Agg")
