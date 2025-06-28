@@ -1,18 +1,26 @@
 import sys
 import os
 if getattr(sys, 'frozen', False):
-    import obspy.imaging
-    print("ObsPy imaging path:", obspy.imaging.__file__)
-    expected_path = os.path.join(os.path.dirname(obspy.imaging.__file__),
-                                 "data", "viridis.npz")
-    print("Expecting viridis at:", expected_path)
-    print("Exists:", os.path.exists(expected_path))
+    import pkg_resources
+    from pathlib import Path
+
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    colormap_path = os.path.join(base_path, "lib", "obspy", "imaging", "data")
+
+    def fake_resource_filename(package, resource):
+        if package == "obspy.imaging.data":
+            return os.path.join(colormap_path, resource)
+        return pkg_resources.resource_filename(package, resource)
+
+    pkg_resources.resource_filename = fake_resource_filename
+
+else:
+    from pathlib import Path
 import yaml
 import numpy as np
 from obspy import read, read_inventory
 from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import matplotlib
