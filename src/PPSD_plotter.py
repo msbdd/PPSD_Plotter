@@ -1,3 +1,4 @@
+import os
 import yaml
 import numpy as np
 from obspy import read, read_inventory
@@ -9,6 +10,13 @@ import sys
 from tqdm import tqdm
 import matplotlib
 matplotlib.use("Agg")
+
+if getattr(sys, 'frozen', False):
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    mpl_data_path = os.path.join(base_path, 'lib', 'matplotlib', 'mpl-data')
+    matplotlib._get_data_path = lambda: mpl_data_path
+
+print("Matplotlib using:", matplotlib.get_data_path())
 
 
 def load_config(path):
