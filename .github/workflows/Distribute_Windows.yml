@@ -38,9 +38,9 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
-    - name: Get version from git tag
-      id: get_version
-      run: echo "VERSION=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+    - name: Get version from tag
+      run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
 
     - name: Debug VERSION
       run: echo "VERSION=$env:VERSION"
