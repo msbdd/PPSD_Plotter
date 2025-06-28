@@ -64,6 +64,6 @@ jobs:
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: PPSD_Plotter_${env:VERSION}_Windows.zip
+        files: PPSD_Plotter_${{ github.ref_name }}_Windows.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
