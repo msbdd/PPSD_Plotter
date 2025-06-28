@@ -2,7 +2,10 @@ from cx_Freeze import setup, Executable
 import sys
 import os
 from pathlib import Path
+import matplotlib
 
+
+mpl_data_path = matplotlib.get_data_path()
 sys.setrecursionlimit(8000)
 
 site_packages = next(p for p in sys.path if 'site-packages' in p)
@@ -25,6 +28,7 @@ setup(
             "excludes": [],
             "include_files": [
                 (str(dist_info), f"lib/{dist_info.name}"),
+                (mpl_data_path, "lib/matplotlib/mpl-data"),
                 ("example", "example"),
                 ("LICENSE", "LICENSE")
             ],
