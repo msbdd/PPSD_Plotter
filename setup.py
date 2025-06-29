@@ -27,10 +27,6 @@ setup(
     description="A simple PPSD plotting tool based on ObsPy",
     options={
         "build_exe": {
-            "includes": ["matplotlib.backends.backend_agg",
-                         "matplotlib.backends.backend_tkagg",
-                         "matplotlib.pyplot",
-                         "matplotlib.cm"],
             "packages": ["obspy", "matplotlib", "yaml", "numpy",
                          "tqdm", "os", "pathlib"],
             "excludes": [],

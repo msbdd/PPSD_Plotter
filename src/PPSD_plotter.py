@@ -1,50 +1,7 @@
 import sys
-import os
-if getattr(sys, 'frozen', False):
-    import obspy.imaging.cm as obspy_cm
-    import numpy as np
-    from matplotlib.colors import LinearSegmentedColormap, ListedColormap
-    from pathlib import Path
-
-    def _frozen_get_cmap(file_name, lut=None, reverse=False):
-        file_name = file_name.strip()
-        file_path = Path(file_name)
-        name = str(file_path.parent / file_path.stem)
-        suffix = file_path.suffix
-        # Patch: point to the bundled data directory in the frozen build
-        directory = os.path.join(
-            os.path.dirname(sys.executable), "lib", "obspy", "imaging", "data"
-            )
-        full_path = os.path.join(directory, file_name)
-        if reverse:
-            name += "_r"
-        if suffix == '.npz':
-            data = dict(np.load(full_path))
-            if reverse:
-                data_r = {}
-                for key, val in data.items():
-                    data_r[key] = [
-                        (1.0 - x, y1, y0) for x, y0, y1 in reversed(val)
-                        ]
-                data = data_r
-            kwargs = lut and {"N": lut} or {}
-            cmap = LinearSegmentedColormap(
-                name=name, segmentdata=data, **kwargs
-                )
-        elif suffix == '.npy':
-            data = np.load(full_path)
-            if reverse:
-                data = data[::-1]
-            cmap = ListedColormap(data, name=name)
-        else:
-            raise ValueError('file suffix {} not recognized.'.format(suffix))
-        return cmap
-
-    obspy_cm._get_cmap = _frozen_get_cmap
-else:
-    from pathlib import Path
-    import numpy as np
-    import matplotlib
+from pathlib import Path
+import numpy as np
+import matplotlib
 import yaml
 from obspy import read, read_inventory
 from obspy.signal import PPSD
