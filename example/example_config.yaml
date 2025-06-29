@@ -1,7 +1,6 @@
 # 3600 should be used as a default; 60 is used for a small example dataset
 timewindow: 600
 num_workers: 2
-units: hz
 
 datasets:
 
@@ -16,3 +15,4 @@ datasets:
     channels: ["BHZ", "BH1", "BH2"]
     action: full
     output_folder: "example/result"
+    figsize: [5, 5]

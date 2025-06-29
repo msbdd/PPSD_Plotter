@@ -76,7 +76,14 @@ def calculate_ppsd(workdir, channel, inv, tw):
             print(f"Error processing {file}: {e}")
 
 
-def plot_ppsd(sampledata, channel, inv, npzfolder, output_folder, tw, units):
+def plot_ppsd(
+        sampledata, channel, inv, npzfolder, output_folder,
+        tw, units, plot_kwargs=None
+        ):
+
+    if plot_kwargs is None:
+        plot_kwargs = {}
+
     st = read(sampledata)
     trace = st.select(channel=channel)[0]
     ppsd = PPSD(trace.stats, inv, ppsd_length=tw)
@@ -91,11 +98,17 @@ def plot_ppsd(sampledata, channel, inv, npzfolder, output_folder, tw, units):
     output_folder.mkdir(parents=True, exist_ok=True)
 
     figfile = output_folder / f"{trace.id}.png"
+    figsize = plot_kwargs.pop("figsize", (12, 6))
+    dpi = plot_kwargs.pop("dpi", 300)
+    cmap = plot_kwargs.pop("cmap", pqlx)
     try:
-        fig = ppsd.plot(cmap=pqlx, show_mean=True, show_histogram=True,
-                        xaxis_frequency=units, show_mode=True, show=False)
-        fig.set_size_inches(12, 6)
-        fig.savefig(figfile, dpi=300)
+        fig = ppsd.plot(
+            cmap=cmap,
+            show=False,
+            **plot_kwargs
+        )
+        fig.set_size_inches(*figsize)
+        fig.savefig(figfile, dpi=dpi)
         print(f"Saved plot: {figfile}")
     except Exception as e:
         print(f"Error: {e}")
@@ -146,9 +159,31 @@ def process_dataset(entry, tw, units):
     output_folder = entry.get("output_folder", folder)
     action = str(entry.get("action", "full"))
     inv = load_inventory(resp_file)
+
     if not inv:
         print(f"Failed to read inventory {resp_file}")
         return
+
+    PLOT_KWARGS = {
+        "show_coverage",
+        "show_percentiles",
+        "show_histogram",
+        "percentiles",
+        "show_noise_models",
+        "show_earthquakes",
+        "grid",
+        "max_percentage",
+        "period_lim",
+        "show_mode",
+        "show_mean",
+        "cmap",
+        "cumulative",
+        "cumulative_number_of_colors",
+        "xaxis_frequency",
+        "dpi",
+        "figsize"
+    }
+    plot_kwargs = {k: entry[k] for k in PLOT_KWARGS if k in entry}
 
     for channel in channels:
         print(f"===> {folder} | {channel} | action={action}")
@@ -161,8 +196,9 @@ def process_dataset(entry, tw, units):
             sample = find_miniseed(folder, channel)
             if sample:
                 plot_ppsd(
-                    sample, channel, inv, npzfolder, output_folder, tw, units
-                    )
+                    sample, channel, inv, npzfolder, output_folder, tw, units,
+                    plot_kwargs=plot_kwargs.copy()
+                )
             else:
                 print(f"No valid trace found in {folder} for {channel}")
 
