@@ -15,5 +15,6 @@ datasets:
     channels: ["00.BHZ", "00.BH1", "00.BH2"]
     action: full
     output_folder: "example/result"
-    figsize: [5, 5]
-    show_mean: true
+    figsize: [6, 6]
+    show_mean: yes
+    grid: no

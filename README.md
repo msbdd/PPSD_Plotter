@@ -3,6 +3,7 @@
 [![PPSD_Plotter Test Linux](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Linux.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Linux.yml)
 [![PPSD_Plotter Test Windows](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Windows.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Windows.yml)
 [![PPSD_Plotter Test MacOS](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_MacOS.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_MacOS.yml)
+<br>
 ![Python versions:](https://img.shields.io/badge/python-3.8_%7C_3.9_%7C_3.10_%7C_3.11_%7C_3.12%7C_3.13-blue?)
 <br>
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-brightgreen.svg)
@@ -17,8 +18,8 @@ This script automates the calculation, plotting, and export of Power Spectral De
 ## TODO:
 
 - Better threading
-- Additional configuration options
-- Fix location codes ambiguity
+- GUI
+- Wildcard support
 
 ---
 
@@ -42,25 +43,31 @@ pip install obspy pyyaml tqdm
 
 ## Configuration File: `config.yaml`
 
-The script uses a YAML file to define how each dataset is processed.
+The script uses a YAML file to define how each dataset is processed. <br> An example configuration is provided in the ```example``` folder.<br>
+You can pass additional plotting parameters to the ```PPSD.plot()``` function from ObsPy.
+For the full list of supported options, please refer to the [ObsPy documentation](https://docs.obspy.org/packages/autogen/obspy.signal.spectral_estimation.PPSD.plot.html)
 
 ```
-timewindow: 3600           # PPSD time window in seconds
-num_workers: 4             # Number of jobs to run in parallel
-units: hz
+# 3600 should be used as a default; 60 is used for a small example dataset
+timewindow: 600
+num_workers: 2
 
 datasets:
-  - folder: "data/st01"              # Path to waveform files (.mseed, .miniseed, .msd)
-    response: "responses/ST01.xml"   # Station response file (.xml, .dataless)
-    channels: ["HHZ", "HHE"]         # List of channels to process
-    action: full                     # Processing action (see below)
-    output_folder: "outputs/st01"    # Folder to save output plots
 
-  - folder: "data/st02"
-    response: "responses/ST02.xml"
-    channels: ["BHZ"]
-    action: calculate
-    output_folder: "outputs/st02"
+  - folder: "example/IU.ANMO..D"
+    response: "example/IU_ANMO_RESP.xml"
+    channels: ["BHZ", "BH1", "BH2"]
+    action: full
+    output_folder: "example/result"
+
+  - folder: "example/IU.GRFO..D"
+    response: "example/IU_GRFO_RESP.xml"
+    channels: ["00.BHZ", "00.BH1", "00.BH2"]
+    action: full
+    output_folder: "example/result"
+    figsize: [6, 6]
+    show_mean: yes
+    grid: no
 ```
 
 ---
@@ -94,7 +101,7 @@ Depending on the action used, the script generates the following output:
 
 - `.npz` files saved to:
   ```
-  <folder>/npz_<channel>/
+  <folder>/npz_<location>_<channel>/
   ```
 
 - `.png` plots saved to:
@@ -104,7 +111,7 @@ Depending on the action used, the script generates the following output:
 
 - `.csv` exported data (for action "convert") saved to:
   ```
-  <folder>/npz_<channel>_text/export.csv
+  <folder>/npz_<location>_<channel>_text/export.csv
   ```
 
 ## Example Data Acknowledgment

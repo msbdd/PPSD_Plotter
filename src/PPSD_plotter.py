@@ -44,6 +44,14 @@ def parse_channel(ch_str):
     return parts[0], parts[1]
 
 
+def safe_bool(val):
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.strip().lower() in ("yes", "true", "1", "on")
+    return False
+
+
 def find_miniseed(workdir, channel, location=None):
     for file in Path(workdir).rglob("*"):
         if file.suffix.lower() in [".msd", ".miniseed", ".mseed"]:
@@ -213,7 +221,22 @@ def process_dataset(entry, tw):
         "dpi",
         "figsize",
     }
-    plot_kwargs = {k: entry[k] for k in PLOT_KWARGS if k in entry}
+
+    BOOLEAN_KEYS = {
+        "show_coverage", "show_percentiles", "show_histogram",
+        "show_noise_models", "show_earthquakes", "grid",
+        "show_mode", "show_mean", "cumulative", "xaxis_frequency"
+    }
+
+    plot_kwargs = {}
+
+    for k in PLOT_KWARGS:
+        if k in entry:
+            val = entry[k]
+            if k in BOOLEAN_KEYS:
+                plot_kwargs[k] = safe_bool(val)
+            else:
+                plot_kwargs[k] = val
 
     for ch_str in channels:
         loc_code, channel = parse_channel(ch_str)
