@@ -1,7 +1,6 @@
 # 3600 should be used as a default; 60 is used for a small example dataset
 timewindow: 600
 num_workers: 2
-units: hz
 
 datasets:
 
@@ -13,6 +12,9 @@ datasets:
 
   - folder: "example/IU.GRFO..D"
     response: "example/IU_GRFO_RESP.xml"
-    channels: ["BHZ", "BH1", "BH2"]
+    channels: ["00.BHZ", "00.BH1", "00.BH2"]
     action: full
     output_folder: "example/result"
+    figsize: [6, 6]
+    show_mean: yes
+    grid: no
