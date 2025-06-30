@@ -37,22 +37,36 @@ def load_inventory(resp_file):
         return
 
 
-def find_miniseed(workdir, channel):
+def parse_channel(ch_str):
+    parts = ch_str.split(".", 1)
+    if len(parts) == 1:
+        return None, parts[0]
+    return parts[0], parts[1]
+
+
+def find_miniseed(workdir, channel, location=None):
     for file in Path(workdir).rglob("*"):
         if file.suffix.lower() in [".msd", ".miniseed", ".mseed"]:
             try:
                 st = read(str(file))
-                if any(tr.stats.channel == channel for tr in st):
-                    return str(file)
+                for tr in st:
+                    if location:
+                        if (
+                            tr.stats.channel == channel and
+                            tr.stats.location == location
+                        ):
+                            return str(file)
+                    else:
+                        if tr.stats.channel == channel:
+                            return str(file)
             except Exception as e:
                 print(f"Skipping {file} due to error: {e}")
     return None
 
 
-def calculate_ppsd(workdir, channel, inv, tw):
+def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
     workdir = Path(workdir)
-    outdir = workdir / f"npz_{channel}"
-    outdir.mkdir(exist_ok=True)
+    Path(npzfolder).mkdir(exist_ok=True)
 
     files = [
         f for f in workdir.rglob("*")
@@ -64,30 +78,45 @@ def calculate_ppsd(workdir, channel, inv, tw):
             ):
         try:
             st = read(str(file))
-            for trace in st.select(channel=channel):
+            st = st.select(channel=channel, location=location)
+            for trace in st:
                 ppsd = PPSD(trace.stats, metadata=inv, ppsd_length=tw)
                 ppsd.add(trace)
                 timestamp = trace.stats.starttime.strftime(
                     '%y-%m-%d_%H-%M-%S.%f'
                     )
-                outfile = outdir / f"{timestamp}.npz"
+                outfile = npzfolder / f"{timestamp}.npz"
                 ppsd.save_npz(str(outfile))
         except Exception as e:
-            print(f"Error processing {file}: {e}")
+            print(
+                f"Error processing {file} for channel={channel}"
+                f"location={location}: {e}"
+                )
 
 
 def plot_ppsd(
-        sampledata, channel, inv, npzfolder, output_folder,
-        tw, units, plot_kwargs=None
+        sampledata, channel, location, inv, npzfolder, output_folder,
+        tw, plot_kwargs=None
         ):
 
     if plot_kwargs is None:
         plot_kwargs = {}
 
     st = read(sampledata)
-    trace = st.select(channel=channel)[0]
+    if location:
+        matches = st.select(channel=channel, location=location)
+    else:
+        matches = st.select(channel=channel)
+    if not matches:
+        print(f"No matching trace for channel={channel} location={location}")
+        return
+    if location is None and len(matches) > 1:
+        print(
+            f"Warning: Multiple locations found for {channel}."
+            f"Using first: {matches[0].stats.location}"
+            )
+    trace = matches[0]
     ppsd = PPSD(trace.stats, inv, ppsd_length=tw)
-
     for file in Path(npzfolder).glob("*.npz"):
         try:
             ppsd.add_npz(str(file))
@@ -96,18 +125,19 @@ def plot_ppsd(
 
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
-
     figfile = output_folder / f"{trace.id}.png"
+
+    cmap = plot_kwargs.pop("cmap", pqlx)
     figsize = plot_kwargs.pop("figsize", (12, 6))
     dpi = plot_kwargs.pop("dpi", 300)
-    cmap = plot_kwargs.pop("cmap", pqlx)
+
     try:
         fig = ppsd.plot(
             cmap=cmap,
             show=False,
             **plot_kwargs
         )
-        fig.set_size_inches(*figsize)
+        fig.set_size_inches(figsize)
         fig.savefig(figfile, dpi=dpi)
         print(f"Saved plot: {figfile}")
     except Exception as e:
@@ -152,7 +182,7 @@ def convert_npz_to_text(npzdir):
         print("No PSD entries found.")
 
 
-def process_dataset(entry, tw, units):
+def process_dataset(entry, tw):
     folder = entry["folder"]
     resp_file = entry["response"]
     channels = entry["channels"]
@@ -181,23 +211,27 @@ def process_dataset(entry, tw, units):
         "cumulative_number_of_colors",
         "xaxis_frequency",
         "dpi",
-        "figsize"
+        "figsize",
     }
     plot_kwargs = {k: entry[k] for k in PLOT_KWARGS if k in entry}
 
-    for channel in channels:
-        print(f"===> {folder} | {channel} | action={action}")
-        npzfolder = Path(folder) / f"npz_{channel}"
+    for ch_str in channels:
+        loc_code, channel = parse_channel(ch_str)
+        print(f"===> {folder} | {loc_code}.{channel} | action={action}")
+        if loc_code:
+            npzfolder = Path(folder) / f"npz_{loc_code}_{channel}"
+        else:
+            npzfolder = Path(folder) / f"npz_{channel}"
 
         if action in ["calculate", "full"]:
-            calculate_ppsd(folder, channel, inv, tw)
+            calculate_ppsd(folder, npzfolder, channel, loc_code, inv, tw)
 
         if action in ["plot", "full"]:
-            sample = find_miniseed(folder, channel)
+            sample = find_miniseed(folder, channel, loc_code)
             if sample:
                 plot_ppsd(
-                    sample, channel, inv, npzfolder, output_folder, tw, units,
-                    plot_kwargs=plot_kwargs.copy()
+                    sample, channel, loc_code, inv, npzfolder,
+                    output_folder, tw, plot_kwargs=plot_kwargs.copy()
                 )
             else:
                 print(f"No valid trace found in {folder} for {channel}")
@@ -210,17 +244,11 @@ def main(config_path):
     config = load_config(config_path)
     tw = config["timewindow"]
     num_workers = config.get("num_workers", 1)
-    units = config.get("units", "s").lower()
-    if units == "hz":
-        units = True
-    else:
-        units = False
-
     datasets = config["datasets"]
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = [
-            executor.submit(process_dataset, entry, tw, units)
+            executor.submit(process_dataset, entry, tw)
             for entry in tqdm(
                 datasets, desc="Submitting tasks", unit="dataset"
                 )
