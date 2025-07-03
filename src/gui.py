@@ -12,6 +12,9 @@ from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
 import matplotlib
 from functools import partial
+import os
+from tkinter import messagebox
+
 
 matplotlib.use("TkAgg")
 
@@ -125,16 +128,18 @@ def parse_channel(ch_str):
 
 
 def find_miniseed_channels(folder):
-
-    found = set()
-    for path in Path(folder).rglob("*.mseed"):
-        try:
-            st = read(str(path), headonly=True)
-            for tr in st:
-                found.add((tr.stats.location.strip(), tr.stats.channel.strip()))
-        except Exception:
-            continue
-    return sorted(found)
+    extensions = [".mseed", ".msd", ".miniseed"]
+    for ext in extensions:
+        for path in Path(folder).rglob(f"*{ext}"):
+            try:
+                st = read(str(path), headonly=True)
+                return sorted(
+                    (tr.stats.location.strip(), tr.stats.channel.strip())
+                    for tr in st
+                )
+            except Exception:
+                continue
+    return []
 
 
 def find_miniseed(workdir, channel, location=None):
@@ -652,7 +657,11 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PPSD Plotter GUI")
-        self.geometry("1000x800")
+        self.geometry("1000x700")
+        # Set custom icon
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
         self.datasets = []
         self.selected_dataset_index = None
         self.build_menu()
@@ -661,9 +670,9 @@ class App(tk.Tk):
     def build_menu(self):
         menubar = tk.Menu(self)
         filemenu = tk.Menu(menubar, tearoff=0)
+        filemenu.add_command(label="New Config", command=self.new_config)
         filemenu.add_command(label="Load Config", command=self.load_config)
         filemenu.add_command(label="Save Config", command=self.save_config)
-        filemenu.add_command(label="New Config", command=self.new_config)
         filemenu.add_separator()
         filemenu.add_command(label="Exit", command=self.quit)
         menubar.add_cascade(label="File", menu=filemenu)
@@ -772,7 +781,10 @@ class App(tk.Tk):
         self.populate_datasets()
 
     def save_config(self):
-        filepath = filedialog.asksaveasfilename(defaultextension=".yaml")
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".yaml",
+            filetypes=[("YAML files", "*.yaml *.yml")],
+            )
         if not filepath:
             return
         for ds in self.datasets:
@@ -783,7 +795,16 @@ class App(tk.Tk):
             yaml.dump(config, f)
 
     def new_config(self):
-        self.datasets = []
+        if self.datasets:
+            confirm = messagebox.askyesno(
+                "New Configuration", "This will discard the current configuration.\nContinue?"
+                )
+        else:
+            confirm = True
+        if not confirm:
+            return
+        import copy
+        self.datasets = [copy.deepcopy(DEFAULT_DATASET)]
         self.populate_datasets()
 
 
