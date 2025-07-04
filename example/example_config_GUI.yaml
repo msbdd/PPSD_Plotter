@@ -1,0 +1,39 @@
+datasets:
+- action: full
+  channels:
+  - 00.BH1
+  - 00.BH2
+  - 00.BHZ
+  folder: example/IU.ANMO..D
+  plot_kwargs:
+    cmap: pqlx
+    cumulative: false
+    grid: true
+    show_coverage: true
+    show_histogram: true
+    show_mean: false
+    show_mode: false
+    show_noise_models: true
+    show_percentiles: false
+    xaxis_frequency: false
+  response: example/IU_ANMO_RESP.xml
+  timewindow: 600
+- action: full
+  channels:
+  - 00.BH1
+  - 00.BH2
+  - 00.BHZ
+  folder: example/IU.GRFO..D
+  plot_kwargs:
+    cmap: pqlx
+    cumulative: false
+    grid: true
+    show_coverage: true
+    show_histogram: true
+    show_mean: true
+    show_mode: false
+    show_noise_models: true
+    show_percentiles: false
+    xaxis_frequency: false
+  response: example/IU_GRFO_RESP.xml
+  timewindow: 600

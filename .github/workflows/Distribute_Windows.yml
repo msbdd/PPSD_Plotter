@@ -42,28 +42,47 @@ jobs:
     - name: Get version from tag
       run: echo "VERSION=${{ github.ref_name }}" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-    - name: Debug VERSION
-      run: echo "VERSION=$env:VERSION"
+    # CLI build
 
     - name: Replace version in setup.py
       run: |
         (Get-Content setup.py) -replace '__VERSION__', "$env:VERSION" | Set-Content setup.py
 
-    - name: Build with cx_Freeze
+    - name: Build CLI with cx_Freeze
       run: |
         python setup.py build
 
-    - name: Rename build output
+    - name: Rename CLI build output
       run: |
         Move-Item build\PPSD_Plotter_Windows ("build\PPSD_Plotter_" + $env:VERSION + "_Windows")
 
-    - name: Create distribution archive
+    - name: Create CLI distribution archive
       run: |
         Compress-Archive -Path ("build\PPSD_Plotter_" + $env:VERSION + "_Windows") -DestinationPath ("PPSD_Plotter_" + $env:VERSION + "_Windows.zip")
+    
+    # Gui build
+
+    - name: Replace version in setup_gui.py
+      run: |
+        (Get-Content setup_gui.py) -replace '__VERSION__', "$env:VERSION" | Set-Content setup_gui.py
+
+    - name: Build GUI with cx_Freeze
+      run: |
+        python setup_gui.py build
+
+    - name: Rename GUI build output
+      run: |
+        Move-Item build\PPSD_Plotter_Windows_GUI ("build\PPSD_Plotter_" + $env:VERSION + "_Windows_GUI")
+
+    - name: Create GUI distribution archive
+      run: |
+        Compress-Archive -Path ("build\PPSD_Plotter_" + $env:VERSION + "_Windows_GUI") -DestinationPath ("PPSD_Plotter_" + $env:VERSION + "_Windows_GUI.zip")
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: PPSD_Plotter_${{ github.ref_name }}_Windows.zip
+        files: |
+          PPSD_Plotter_${{ github.ref_name }}_Windows.zip
+          PPSD_Plotter_${{ github.ref_name }}_Windows_GUI.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

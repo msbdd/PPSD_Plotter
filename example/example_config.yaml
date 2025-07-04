@@ -16,5 +16,5 @@ datasets:
     action: full
     output_folder: "example/result"
     figsize: [6, 6]
-    show_mean: yes
-    grid: no
+    show_mean: true
+    grid: true
