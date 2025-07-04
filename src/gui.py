@@ -14,7 +14,7 @@ import matplotlib
 from functools import partial
 import os
 from tkinter import messagebox
-
+import copy
 
 matplotlib.use("TkAgg")
 
@@ -129,14 +129,17 @@ def parse_channel(ch_str):
 
 def find_miniseed_channels(folder):
     extensions = [".mseed", ".msd", ".miniseed"]
+    seen = set()
     for ext in extensions:
         for path in Path(folder).rglob(f"*{ext}"):
             try:
                 st = read(str(path), headonly=True)
-                return sorted(
-                    (tr.stats.location.strip(), tr.stats.channel.strip())
-                    for tr in st
-                )
+                for tr in st:
+                    key = (tr.stats.location.strip(), tr.stats.channel.strip())
+                    if key not in seen:
+                        seen.add(key)
+                if seen:
+                    return sorted(seen)
             except Exception:
                 continue
     return []
@@ -181,7 +184,8 @@ def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
             for trace in st:
                 ppsd = PPSD(trace.stats, metadata=inv, ppsd_length=tw)
                 ppsd.add(trace)
-                timestamp = trace.stats.starttime.strftime("%y-%m-%d_%H-%M-%S.%f")
+                timestamp = trace.stats.starttime.strftime(
+                    "%y-%m-%d_%H-%M-%S.%f")
                 outfile = npzfolder / f"{timestamp}.npz"
                 ppsd.save_npz(str(outfile))
         except Exception as e:
@@ -220,8 +224,10 @@ def convert_npz_to_text(npzdir):
             fo.write(header + "\n")
             for time_window, row in psd_entries:
                 fo.write(
-                    f"{time_window}," + ",".join(f"{float(v):.6f}" for v in row) + "\n"
-                )
+                    f"{time_window}," +
+                    ",".join(
+                        f"{float(v):.6f}" for v in row) +
+                    "\n")
         print(f"Saved CSV to {outcsv}")
     else:
         print("No PSD entries found.")
@@ -283,8 +289,13 @@ def process_dataset_visual(ds, tw, progress_update_callback):
             sample = find_miniseed(folder, channel, loc_code)
             if sample:
                 plot_ppsd_interactive(
-                    sample, channel, loc_code, inv, npzfolder, tw, plot_kwargs.copy()
-                )
+                    sample,
+                    channel,
+                    loc_code,
+                    inv,
+                    npzfolder,
+                    tw,
+                    plot_kwargs.copy())
             else:
                 progress_update_callback(progress, f"No data for {ch_str}")
 
@@ -384,8 +395,9 @@ class ToolTip:
         if self.tipwindow or not self.text:
             return
         x, y, _, cy = (
-            self.widget.bbox("insert") if hasattr(self.widget, "bbox") else (0, 0, 0, 0)
-        )
+            self.widget.bbox("insert") if hasattr(
+                self.widget, "bbox") else (
+                0, 0, 0, 0))
         x = x + self.widget.winfo_rootx() + 25
         y = y + cy + self.widget.winfo_rooty() + 20
         self.tipwindow = tw = tk.Toplevel(self.widget)
@@ -464,17 +476,26 @@ class DatasetFrame(ttk.LabelFrame):
     def build(self):
         row = 0
         # Folders/files: no tooltip, plain label
-        self.build_path_selector(PARAM_LABELS.get("folder", "folder"), "folder", row)
+        self.build_path_selector(
+            PARAM_LABELS.get(
+                "folder",
+                "folder"),
+            "folder",
+            row)
         row += 1
         self.build_path_selector(
             PARAM_LABELS.get("response", "response"), "response", row
         )
         row += 1
         # Action
-        label = ttk.Label(self, text=PARAM_LABELS.get("action", "Action") + ":")
+        label = ttk.Label(
+            self, text=PARAM_LABELS.get(
+                "action", "Action") + ":")
         label.grid(row=row, column=0, sticky="w")
         ToolTip(label, PARAM_TOOLTIPS.get("action", ""))
-        self.action_var = tk.StringVar(value=self.dataset.get("action", "full"))
+        self.action_var = tk.StringVar(
+            value=self.dataset.get(
+                "action", "full"))
         action_combo = ttk.Combobox(
             self,
             textvariable=self.action_var,
@@ -492,7 +513,11 @@ class DatasetFrame(ttk.LabelFrame):
         )
         label.grid(row=row, column=0, sticky="w")
         ToolTip(label, PARAM_TOOLTIPS.get("timewindow", ""))
-        self.tw_var = tk.StringVar(value=str(self.dataset.get("timewindow", 3600)))
+        self.tw_var = tk.StringVar(
+            value=str(
+                self.dataset.get(
+                    "timewindow",
+                    3600)))
         tw_entry = ttk.Entry(self, textvariable=self.tw_var, width=10)
         tw_entry.grid(row=row, column=1, sticky="w")
         tw_entry.bind("<FocusOut>", self.update_timewindow)
@@ -526,11 +551,15 @@ class DatasetFrame(ttk.LabelFrame):
                 )
                 cb.grid(row=row, column=0, sticky="w")
                 ToolTip(cb, PARAM_TOOLTIPS.get(key, ""))
-                var.trace_add("write", partial(self.update_plot_kwargs, key, var))
+                var.trace_add(
+                    "write", partial(
+                        self.update_plot_kwargs, key, var))
                 self.plot_kwargs_vars[key] = var
             elif key == "cmap":
                 current_val = str(current_val) if current_val else "pqlx"
-                label = ttk.Label(self, text=PARAM_LABELS.get("cmap", "cmap") + ":")
+                label = ttk.Label(
+                    self, text=PARAM_LABELS.get(
+                        "cmap", "cmap") + ":")
                 label.grid(row=row, column=0, sticky="w")
                 ToolTip(label, PARAM_TOOLTIPS.get("cmap", ""))
                 var = tk.StringVar(value=current_val)
@@ -543,8 +572,8 @@ class DatasetFrame(ttk.LabelFrame):
                 )
                 combo.grid(row=row, column=1, sticky="w")
                 combo.bind(
-                    "<<ComboboxSelected>>", partial(self.update_plot_kwargs, key, var)
-                )
+                    "<<ComboboxSelected>>", partial(
+                        self.update_plot_kwargs, key, var))
                 self.plot_kwargs_vars[key] = var
             else:
                 var = tk.StringVar(
@@ -555,12 +584,21 @@ class DatasetFrame(ttk.LabelFrame):
                 ToolTip(label, PARAM_TOOLTIPS.get(key, ""))
                 ent = ttk.Entry(self, textvariable=var, width=30)
                 ent.grid(row=row, column=1, sticky="w")
-                ent.bind("<FocusOut>", partial(self.update_plot_kwargs, key, var))
+                ent.bind(
+                    "<FocusOut>", partial(
+                        self.update_plot_kwargs, key, var))
                 self.plot_kwargs_vars[key] = var
             row += 1
 
         self.progress = ttk.Progressbar(self, maximum=100, mode="determinate")
-        self.progress.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+        self.progress.grid(
+            row=row,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=(
+                5,
+                0))
         row += 1
         self.status_label = ttk.Label(self, text="", foreground="gray")
         self.status_label.grid(row=row, column=0, columnspan=2, sticky="w")
@@ -568,15 +606,25 @@ class DatasetFrame(ttk.LabelFrame):
         # Group buttons in a frame
         btn_frame = ttk.Frame(self)
         btn_frame.grid(row=row, column=0, columnspan=3, sticky="w", pady=5)
-        ttk.Button(btn_frame, text="Run Dataset", command=self.run_this_dataset).pack(
-            side="left", padx=(0, 5)
-        )
+        ttk.Button(
+            btn_frame,
+            text="Run Dataset",
+            command=self.run_this_dataset).pack(
+            side="left",
+            padx=(
+                0,
+                5))
         ttk.Button(
             btn_frame, text="Delete Dataset", command=self.delete_this_dataset
         ).pack(side="left", padx=(0, 5))
         ttk.Button(
-            btn_frame, text="Duplicate Dataset", command=self.duplicate_this_dataset
-        ).pack(side="left", padx=(0, 5))
+            btn_frame,
+            text="Duplicate Dataset",
+            command=self.duplicate_this_dataset).pack(
+            side="left",
+            padx=(
+                0,
+                5))
 
     def update_timewindow(self, *_):
         try:
@@ -658,14 +706,14 @@ class App(tk.Tk):
         super().__init__()
         self.title("PPSD Plotter GUI")
         self.geometry("1000x700")
-        # Set custom icon
         icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)
-        self.datasets = []
+        self.datasets = [copy.deepcopy(DEFAULT_DATASET)]
         self.selected_dataset_index = None
         self.build_menu()
         self.build_main()
+        self.populate_datasets()
 
     def build_menu(self):
         menubar = tk.Menu(self)
@@ -690,13 +738,13 @@ class App(tk.Tk):
         )
         self.scroll_frame = ttk.Frame(self.scroll)
         self.scroll_frame.bind(
-            "<Configure>",
-            lambda e: self.scroll.configure(scrollregion=self.scroll.bbox("all")),
-        )
-        self.scroll.create_window((0, 0), window=self.scroll_frame, anchor="nw")
+            "<Configure>", lambda e: self.scroll.configure(
+                scrollregion=self.scroll.bbox("all")), )
+        self.scroll.create_window(
+            (0, 0), window=self.scroll_frame, anchor="nw")
         self.scroll.configure(
-            yscrollcommand=self.scrollbar.set, xscrollcommand=self.hscrollbar.set
-        )
+            yscrollcommand=self.scrollbar.set,
+            xscrollcommand=self.hscrollbar.set)
 
         self.scroll.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
@@ -704,16 +752,17 @@ class App(tk.Tk):
 
         controls = ttk.Frame(self)
         controls.pack(fill="x", padx=10, pady=5)
-        ttk.Button(controls, text="Add Dataset", command=self.add_dataset).pack(
-            side="left"
-        )
+        ttk.Button(
+            controls,
+            text="Add Dataset",
+            command=self.add_dataset).pack(
+            side="left")
 
     def select_dataset(self, index):
         self.selected_dataset_index = index
         self.populate_datasets()  # Refresh to update selection highlight
 
     def add_dataset(self):
-        import copy
 
         self.datasets.append(copy.deepcopy(DEFAULT_DATASET))
         self.populate_datasets()
@@ -756,9 +805,11 @@ class App(tk.Tk):
 
     def duplicate_dataset(self, index):
         if 0 <= index < len(self.datasets):
-            import copy
 
-            self.datasets.insert(index + 1, copy.deepcopy(self.datasets[index]))
+            self.datasets.insert(
+                index + 1,
+                copy.deepcopy(
+                    self.datasets[index]))
             self.populate_datasets()
 
     def load_config(self):
@@ -784,7 +835,7 @@ class App(tk.Tk):
         filepath = filedialog.asksaveasfilename(
             defaultextension=".yaml",
             filetypes=[("YAML files", "*.yaml *.yml")],
-            )
+        )
         if not filepath:
             return
         for ds in self.datasets:
@@ -797,13 +848,12 @@ class App(tk.Tk):
     def new_config(self):
         if self.datasets:
             confirm = messagebox.askyesno(
-                "New Configuration", "This will discard the current configuration.\nContinue?"
-                )
+                "New Configuration",
+                "This will discard the current configuration.\nContinue?")
         else:
             confirm = True
         if not confirm:
             return
-        import copy
         self.datasets = [copy.deepcopy(DEFAULT_DATASET)]
         self.populate_datasets()
 
