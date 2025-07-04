@@ -91,7 +91,7 @@ DEFAULT_DATASET = {
     "response": "",
     "channels": [],
     "action": "full",
-    "timewindow": 600,
+    "timewindow": 3600,
     "plot_kwargs": DEFAULT_PLOT_KWARGS.copy(),
 }
 
@@ -760,7 +760,7 @@ class App(tk.Tk):
 
     def select_dataset(self, index):
         self.selected_dataset_index = index
-        self.populate_datasets()  # Refresh to update selection highlight
+        self.populate_datasets()
 
     def add_dataset(self):
 
