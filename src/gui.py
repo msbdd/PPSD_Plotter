@@ -15,7 +15,7 @@ from functools import partial
 import os
 from tkinter import messagebox
 import copy
-
+import sys
 matplotlib.use("TkAgg")
 
 CMAP_NAMES = ["pqlx"] + sorted(colormaps)
@@ -118,6 +118,16 @@ PARAM_TOOLTIPS = {
 }
 
 ACTIONS = ["plot", "calculate", "full", "convert"]
+
+
+def resource_path(relative_path):
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '..')
+            )
+    return os.path.join(base_path, relative_path)
 
 
 def parse_channel(ch_str):
@@ -706,7 +716,7 @@ class App(tk.Tk):
         super().__init__()
         self.title("PPSD Plotter GUI")
         self.geometry("1000x700")
-        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        icon_path = resource_path("resources/icon.ico")
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)
         self.datasets = [copy.deepcopy(DEFAULT_DATASET)]

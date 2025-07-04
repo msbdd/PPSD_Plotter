@@ -19,7 +19,7 @@ exe = Executable(
     script=os.path.join("src", "gui.py"),
     base=None if sys.platform == "win32" else None,
     target_name="PPSD_Plot_GUI",
-    icon="src/icon.ico"
+    icon="resources/icon.ico"
 )
 
 setup(
@@ -37,7 +37,7 @@ setup(
                 (obsipy_data_dir, "lib/obspy/imaging/data"),
                 ("example", "example"),
                 ("LICENSE", "LICENSE"),
-                ("src/icon.ico", "src/icon.ico"),
+                ("resources/icon.ico", "resources/icon.ico"),
             ],
             "build_exe": "build/PPSD_Plotter_Windows_GUI"
         }
