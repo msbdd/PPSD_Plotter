@@ -18,7 +18,9 @@ import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 import numpy as np
-from ppsd_plotter_aux import calculate_ppsd_worker, load_inventory
+from ppsd_plotter_aux import calculate_ppsd_worker, load_inventory, \
+                            find_miniseed_channels, find_miniseed, \
+                            calculate_noise_line
 from localization_dicts import ALL_LABELS, ALL_SOFTWARE_LABELS, ALL_TOOLTIPS
 
 matplotlib.use("TkAgg")
@@ -118,44 +120,6 @@ def parse_channel(ch_str):
     if len(parts) == 1:
         return None, parts[0]
     return parts[0], parts[1]
-
-
-def find_miniseed_channels(folder):
-    extensions = [".mseed", ".msd", ".miniseed"]
-    seen = set()
-    for ext in extensions:
-        for path in Path(folder).rglob(f"*{ext}"):
-            try:
-                st = read(str(path), headonly=True)
-                for tr in st:
-                    key = (tr.stats.location.strip(), tr.stats.channel.strip())
-                    if key not in seen:
-                        seen.add(key)
-                if seen:
-                    return sorted(seen)
-            except Exception:
-                continue
-    return []
-
-
-def find_miniseed(workdir, channel, location=None):
-    for file in Path(workdir).rglob("*"):
-        if file.suffix.lower() in [".msd", ".miniseed", ".mseed"]:
-            try:
-                st = read(str(file))
-                for tr in st:
-                    if location:
-                        if (
-                            tr.stats.channel == channel
-                            and tr.stats.location == location
-                        ):
-                            return str(file)
-                    else:
-                        if tr.stats.channel == channel:
-                            return str(file)
-            except Exception as e:
-                print(f"Skipping {file} due to error: {e}")
-    return None
 
 
 def convert_npz_to_text(npzdir):
@@ -334,7 +298,6 @@ def process_dataset_visual(ds, progress_update_callback):
             npzfolder = Path(folder) / f"npz_{loc_code}_{channel}"
         else:
             npzfolder = Path(folder) / f"npz_{channel}"
-
         if action in ["plot", "full"]:
             sample = find_miniseed(folder, channel, loc_code)
             if sample:
@@ -346,6 +309,7 @@ def process_dataset_visual(ds, progress_update_callback):
                     npzfolder,
                     int(ds.get("timewindow", 3600)),
                     plot_kwargs.copy(),
+                    custom_noise_line=ds.get("custom_noise_line")
                 )
             else:
                 progress_update_callback(progress, f"No data for {ch_label}")
@@ -357,7 +321,9 @@ def process_dataset_visual(ds, progress_update_callback):
 
 
 def plot_ppsd_interactive(
-    sampledata, channel, location, inv, npzfolder, tw, plot_kwargs=None
+    sampledata, channel, location, inv,
+    npzfolder, tw, plot_kwargs=None,
+    custom_noise_line=None
 ):
     if plot_kwargs is None:
         plot_kwargs = {}
@@ -392,7 +358,28 @@ def plot_ppsd_interactive(
             print(f"Error loading {file}: {e}")
 
     fig = ppsd.plot(cmap=cmap, show=False, **plot_kwargs)
+    if custom_noise_line:
+        try:
+            amp = float(custom_noise_line.get("amplitude", 1.0))
+            f1, f2 = map(
+                float, custom_noise_line.get("freq_range", [1.0, 10.0])
+                )
+            color = custom_noise_line.get("color", "orange")
 
+            freq1, freq2, db = calculate_noise_line(amp, (f1, f2))
+            if not plot_kwargs.get("xaxis_frequency"):
+                freq1 = 1/freq1
+                freq2 = 1/freq2
+            ax = fig.axes[0]
+            ax.plot([freq1, freq2], [db, db],
+                    color=color,
+                    lw=2,
+                    linestyle='--',
+                    label=f"Noise {amp:.6g} mg")
+            leg = ax.legend()
+            leg.set_draggable(True)
+        except Exception as e:
+            print(f"Failed to plot custom noise line: {e}")
     fig.canvas.manager.set_window_title(f"PPSD Plot {trace.id}")
     fig.show()
 
@@ -605,6 +592,38 @@ class DatasetFrame(ttk.LabelFrame):
                 self.plot_kwargs_vars[key] = var
             row += 1
 
+        textlabel = ALL_SOFTWARE_LABELS[CURRENT_LANG].get("custom_noise")
+        label = ttk.Label(self, text=textlabel)
+        label.grid(row=row, column=0, columnspan=2, sticky="w")
+        row += 1
+
+        self.custom_noise_vars = {
+            "amplitude": tk.StringVar(value=""),
+            "freq_range": tk.StringVar(value=""),
+            "color": tk.StringVar(value=""),
+        }
+
+        c = self.dataset.get("custom_noise_line")
+        if isinstance(c, dict):
+            self.custom_noise_vars["amplitude"].set(
+                str(c.get("amplitude", ""))
+                )
+            self.custom_noise_vars["freq_range"].set(
+                ", ".join(map(str, c.get("freq_range", [])))
+            )
+            self.custom_noise_vars["color"].set(c.get("color", ""))
+
+        for field, var in self.custom_noise_vars.items():
+            label = ttk.Label(
+                self, text=field.replace("_", " ").capitalize() + ":"
+                )
+            label.grid(row=row, column=0, sticky="w")
+
+            entry = ttk.Entry(self, textvariable=var, width=30)
+            entry.grid(row=row, column=1, sticky="w")
+            entry.bind("<FocusOut>", self.update_custom_noise_line)
+
+            row += 1
         self.progress = ttk.Progressbar(self, maximum=100, mode="determinate")
         self.progress.grid(
             row=row,
@@ -661,14 +680,20 @@ class DatasetFrame(ttk.LabelFrame):
         ]
 
     def update_plot_kwargs(self, key, var, *_):
-        val = var.get().strip()
-
+        val = var.get()
         if key in BOOLEAN_KEYS:
             clean_val = safe_bool(val)
             self.dataset["plot_kwargs"][key] = clean_val
             return
 
-        if key == "show_earthquakes":
+        elif key == "cmap":
+            if val:
+                self.dataset["plot_kwargs"][key] = val
+            else:
+                self.dataset["plot_kwargs"][key] = None
+            return
+
+        elif key == "show_earthquakes":
             if not val:
                 self.dataset["plot_kwargs"][key] = None
                 var.set("")  # clear
@@ -719,6 +744,33 @@ class DatasetFrame(ttk.LabelFrame):
             self.dataset["plot_kwargs"][key] = None
             var.set("")
 
+    def update_custom_noise_line(self, *_):
+        amp_str = self.custom_noise_vars["amplitude"].get().strip()
+        freq_str = self.custom_noise_vars["freq_range"].get().strip()
+        color = self.custom_noise_vars["color"].get().strip()
+
+        if not amp_str and not freq_str and not color:
+            self.dataset["custom_noise_line"] = None
+            return
+
+        try:
+            amp = float(amp_str)
+            freqs = [
+                float(f.strip())
+                for f in freq_str.replace(" ", ",").split(",")
+                if f.strip()
+            ]
+            if len(freqs) != 2:
+                raise ValueError("Need two frequencies")
+
+            self.dataset["custom_noise_line"] = {
+                "amplitude": amp,
+                "freq_range": freqs,
+                "color": color or "orange",
+            }
+        except Exception:
+            self.dataset["custom_noise_line"] = None
+
     def run_this_dataset(self):
         self.status_label.config(text="Starting...", foreground="orange")
         self.progress["value"] = 0
@@ -746,7 +798,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PPSD Plotter GUI")
-        self.geometry("1000x700")
+        self.state('zoomed')
         icon_path = resource_path("resources/icon.ico")
         if os.path.exists(icon_path):
             self.iconbitmap(icon_path)

@@ -64,6 +64,7 @@ SOFTWARE_LABELS_EN = {
     "output_folder": "Output folder",
     "browse": "Browse",
     "img_size": "Image Size (inches):",
+    "custom_noise": "Additional noise line",
 }
 
 PARAM_LABELS_DE = {
@@ -131,6 +132,7 @@ SOFTWARE_LABELS_DE = {
     "output_folder": "Zielordner",
     "browse": "Durchsuchen",
     "img_size": "Bildgröße (Zoll):",
+    "custom_noise": "Zusätzliche Rauschlinie",
 }
 
 PARAM_LABELS_RU = {
@@ -199,6 +201,7 @@ SOFTWARE_LABELS_RU = {
     "output_folder": "Выбрать папку для сохранения",
     "browse": "Обзор",
     "img_size": "Размер изображения (дюймы):",
+    "custom_noise": "Дополнительная линия"
 }
 
 PARAM_LABELS_RS = {
@@ -266,6 +269,7 @@ SOFTWARE_LABELS_RS = {
     "output_folder": "Folder za čuvanje",
     "browse": "Pregledaj",
     "img_size": "Veličina slike (inči):",
+    "custom_noise": "Dodatna linija šuma"
 }
 
 PARAM_LABELS_TR = {
@@ -334,6 +338,7 @@ SOFTWARE_LABELS_TR = {
     "browse": "Gözat",
     "img_size": "Görsel Boyutu (inç):",
     "progress": "İlerleme",
+    "custom_noise": "Ek gürültü hattı"
 }
 
 ALL_LABELS = {

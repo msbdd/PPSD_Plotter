@@ -5,7 +5,7 @@
 
 [![PPSD_Plotter Build Windows](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Distribute_Windows.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Distribute_Windows.yml)
 
-<sup>There is a saying: GUI makes simple tasks simpler and more convenient, while CLI makes complex tasks possible
+<sup>There is a saying: GUI makes simple tasks simpler and more convenient, while CLI makes complex tasks possible.
 <br>
 This is primary aimed for solving a rather simple task, but without writing even simple scripts at the end user side.
 </sup>
