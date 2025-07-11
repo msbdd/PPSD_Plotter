@@ -525,7 +525,7 @@ class DatasetFrame(ttk.LabelFrame):
         row += 1
 
         label = ttk.Label(
-            self, text=PARAM_LABELS.get("timewindow", "Timewindow") + " (с):"
+            self, text=PARAM_LABELS.get("timewindow", "Timewindow") + " (s):"
         )
         label.grid(row=row, column=0, sticky="w")
         ToolTip(label, PARAM_TOOLTIPS.get("timewindow", ""))
@@ -661,38 +661,63 @@ class DatasetFrame(ttk.LabelFrame):
         ]
 
     def update_plot_kwargs(self, key, var, *_):
-        val = var.get()
+        val = var.get().strip()
+
         if key in BOOLEAN_KEYS:
-            self.dataset["plot_kwargs"][key] = bool(val)
-        elif key == "show_earthquakes":
-            val = val.strip()
+            clean_val = safe_bool(val)
+            self.dataset["plot_kwargs"][key] = clean_val
+            return
+
+        if key == "show_earthquakes":
             if not val:
                 self.dataset["plot_kwargs"][key] = None
-            else:
-                try:
-
-                    parts = [
-                        float(x.strip())
-                        for x in val.replace(" ", ",").split(",")
-                        if x.strip()
-                    ]
-                    if len(parts) == 1:
-                        self.dataset["plot_kwargs"][key] = (parts[0],)
-                    elif len(parts) >= 2:
-                        self.dataset["plot_kwargs"][key] = tuple(parts[:2])
-                    else:
-                        self.dataset["plot_kwargs"][key] = None
-                except Exception:
-                    self.dataset["plot_kwargs"][key] = None
-        else:
+                var.set("")  # clear
+                return
             try:
-                if "," in val:
-                    val = [float(x.strip()) for x in val.split(",")]
+                parts = [
+                    float(x.strip())
+                    for x in val.replace(" ", ",").split(",")
+                    if x.strip()
+                ]
+                if len(parts) == 1:
+                    parsed_val = (parts[0],)
                 else:
-                    val = float(val)
-            except ValueError:
-                pass
-            self.dataset["plot_kwargs"][key] = val
+                    parsed_val = tuple(parts[:2])
+                self.dataset["plot_kwargs"][key] = parsed_val
+                var.set(", ".join(map(str, parsed_val)))
+            except Exception:
+                self.dataset["plot_kwargs"][key] = None
+                var.set("")
+            return
+        elif key == "percentiles":
+            if not val:
+                self.dataset["plot_kwargs"][key] = []
+                var.set("")
+                return
+            try:
+                parts = [
+                    float(x.strip())
+                    for x in val.replace(" ", ",").split(",")
+                    if x.strip()
+                ]
+                self.dataset["plot_kwargs"][key] = parts
+                var.set(", ".join(map(str, parts)))
+            except Exception:
+                self.dataset["plot_kwargs"][key] = []
+                var.set("")
+            return
+        try:
+            if "," in val:
+                parts = [float(x.strip()) for x in val.split(",") if x.strip()]
+                self.dataset["plot_kwargs"][key] = parts
+                var.set(", ".join(map(str, parts)))
+            else:
+                number = float(val)
+                self.dataset["plot_kwargs"][key] = number
+                var.set(str(number))
+        except Exception:
+            self.dataset["plot_kwargs"][key] = None
+            var.set("")
 
     def run_this_dataset(self):
         self.status_label.config(text="Starting...", foreground="orange")
