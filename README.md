@@ -1,25 +1,22 @@
-# PPSD Plotting Script
+# PPSD Plotting Utility
 
-[![PPSD_Plotter Test Linux](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Linux.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Linux.yml)
-[![PPSD_Plotter Test Windows](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Windows.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_Windows.yml)
-[![PPSD_Plotter Test MacOS](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_MacOS.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Test_MacOS.yml)
-<br>
-![Python versions:](https://img.shields.io/badge/python-3.8_%7C_3.9_%7C_3.10_%7C_3.11_%7C_3.12%7C_3.13-blue?)
-<br>
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-brightgreen.svg)
 ![Code style: flake8](https://img.shields.io/badge/Code%20style-flake8-brightgreen)
 
 [![PPSD_Plotter Build Windows](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Distribute_Windows.yml/badge.svg)](https://github.com/msbdd/PPSD_Plotter/actions/workflows/Distribute_Windows.yml)
 
-~~<sup>(Because I am tired to always re-write the same code when I do need to plot PPSD)</sup>~~
+<sup>There is a saying: GUI makes simple tasks simpler and more convenient, while CLI makes complex tasks possible
+<br>
+This is primary aimed for solving a rather simple task, but without writing even simple scripts at the end user side.
+</sup>
 
-This script automates the calculation, plotting, and export of Power Spectral Density (PPSD) data from seismic waveform files using [ObsPy](https://docs.obspy.org). It is designed to process many datasets using a simple YAML configuration and parallel execution.
+This utility automates the calculation, plotting, and export of Power Spectral Density (PPSD) data from seismic waveform files using [ObsPy](https://docs.obspy.org). It is designed to process many datasets using a simple YAML configuration and parallel execution and has a simple tkinter-based GUI.
 
 ## TODO:
 
-- Better threading
-- GUI
+- Custom plotting function and additional plotting parameters (for example, day/night or a custom noise level over a freq range)
 - Wildcard support
+- Linux building (?)
 
 ---
 
@@ -32,68 +29,28 @@ This script automates the calculation, plotting, and export of Power Spectral De
 
 ## Installation
 
+If you are on Windows and don't want to handle any python-related installations, please use the provided binary.
+
+If you are on Linux/MacOS or want to install on Windows using source code you could:
+
 1) Create a new venv
 2) Install dependencies:
 
 ```
-pip install obspy pyyaml tqdm
+pip install -r requirements.txt
 ```
-
+3) Run 
+```
+python src\gui.py
+```
 ---
 
 ## Configuration File: `config.yaml`
 
-The script uses a YAML file to define how each dataset is processed. <br> An example configuration is provided in the ```example``` folder.<br>
+The utility uses a YAML file to define how each dataset is processed. <br> An example configuration is provided in the ```example``` folder.<br>
 You can pass additional plotting parameters to the ```PPSD.plot()``` function from ObsPy.
 For the full list of supported options, please refer to the [ObsPy documentation](https://docs.obspy.org/packages/autogen/obspy.signal.spectral_estimation.PPSD.plot.html)
 
-```
-# 3600 should be used as a default; 60 is used for a small example dataset
-timewindow: 600
-num_workers: 2
-
-datasets:
-
-  - folder: "example/IU.ANMO..D"
-    response: "example/IU_ANMO_RESP.xml"
-    channels: ["BHZ", "BH1", "BH2"]
-    action: full
-    output_folder: "example/result"
-
-  - folder: "example/IU.GRFO..D"
-    response: "example/IU_GRFO_RESP.xml"
-    channels: ["00.BHZ", "00.BH1", "00.BH2"]
-    action: full
-    output_folder: "example/result"
-    figsize: [6, 6]
-    show_mean: yes
-    grid: no
-```
-
----
-
-## Action Codes
-
-Each dataset block includes an `action` value that controls what processing is performed:
-
-```
-calculate → Calculate PPSD and save as .npz files
-plot → Plot existing .npz files as .png
-full → Calculate and plot (equivalent to 1 + 2)
-convert → Convert .npz files to a CSV text format
-```
-
----
-
-## Running the Script
-
-Once configured, run the script using:
-
-```
-python PPSD_Plotter.py config.yaml
-```
-
----
 
 ## Output Structure
 
