@@ -835,12 +835,13 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("PPSD Plotter GUI")
-        self.state('zoomed')
         if platform.system() == "Windows":
+            self.state('zoomed')
             icon_path = resource_path("resources/icon.ico")
             if os.path.exists(icon_path):
                 self.iconbitmap(icon_path)
         elif platform.system() == "Linux":
+            self.attributes('-zoomed', True)
             icon_path = resource_path("resources/icon.png")
             if os.path.exists(icon_path):
                 self.iconphoto(False, icon_path)

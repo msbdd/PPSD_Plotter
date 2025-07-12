@@ -25,7 +25,7 @@ exe = Executable(
 
 setup(
     name="PPSD_Plotter",
-    version="0.2.0",
+    version="__VERSION__",
     description="A simple PPSD plotting tool based on ObsPy",
     options={
         "build_exe": {
