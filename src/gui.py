@@ -844,7 +844,8 @@ class App(tk.Tk):
             self.attributes('-zoomed', True)
             icon_path = resource_path("resources/icon.png")
             if os.path.exists(icon_path):
-                self.iconphoto(False, icon_path)
+                icon_image = tk.PhotoImage(file=icon_path)
+                self.iconphoto(False, icon_image)
         self.datasets = [copy.deepcopy(DEFAULT_DATASET)]
         self.selected_dataset_index = None
         self.build_menu()
@@ -1063,7 +1064,8 @@ class App(tk.Tk):
         elif platform.system() == "Linux":
             icon_path = resource_path("resources/icon.png")
             if os.path.exists(icon_path):
-                dialog.iconphoto(False, icon_path)
+                icon_image = tk.PhotoImage(file=icon_path)
+                dialog.iconphoto(False, icon_image)
         ttk.Label(dialog, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get(
             "output_folder")).grid(row=0, column=0, sticky="w", **GRID_PAD)
         out_var = tk.StringVar()
