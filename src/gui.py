@@ -6,6 +6,7 @@ import yaml
 from pathlib import Path
 from matplotlib import colormaps
 from matplotlib import pyplot as plt
+from matplotlib.colors import get_named_colors_mapping
 from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
 from obspy import read
@@ -13,6 +14,7 @@ import matplotlib
 from functools import partial
 import os
 import sys
+import platform
 import copy
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -29,6 +31,9 @@ PARAM_LABELS = ALL_LABELS[CURRENT_LANG]
 PARAM_TOOLTIPS = ALL_TOOLTIPS[CURRENT_LANG]
 SOFTWARE_LABELS = ALL_SOFTWARE_LABELS[CURRENT_LANG]
 CMAP_NAMES = ["pqlx"] + sorted(colormaps)
+COLOR_NAMES = sorted(
+    name for name in get_named_colors_mapping().keys() if " " not in name
+)
 
 PLOT_KWARGS = {
     "show_coverage",
@@ -600,7 +605,7 @@ class DatasetFrame(ttk.LabelFrame):
         self.custom_noise_vars = {
             "amplitude": tk.StringVar(value=""),
             "freq_range": tk.StringVar(value=""),
-            "color": tk.StringVar(value=""),
+            "color": tk.StringVar(value="")
         }
 
         c = self.dataset.get("custom_noise_line")
@@ -614,14 +619,32 @@ class DatasetFrame(ttk.LabelFrame):
             self.custom_noise_vars["color"].set(c.get("color", ""))
 
         for field, var in self.custom_noise_vars.items():
+            label_text = ALL_SOFTWARE_LABELS[CURRENT_LANG].get(field)
             label = ttk.Label(
-                self, text=field.replace("_", " ").capitalize() + ":"
+                self, text=label_text
                 )
             label.grid(row=row, column=0, sticky="w")
 
-            entry = ttk.Entry(self, textvariable=var, width=30)
-            entry.grid(row=row, column=1, sticky="w")
-            entry.bind("<FocusOut>", self.update_custom_noise_line)
+            if field == "color":
+                combo = ttk.Combobox(
+                    self, textvariable=var, values=COLOR_NAMES, width=30
+                    )
+                combo.grid(row=row, column=1, sticky="w")
+                combo.bind(
+                    "<<ComboboxSelected>>", lambda e,
+                    f=field: self.update_custom_noise_field(f)
+                    )
+                combo.bind(
+                    "<FocusOut>", lambda e,
+                    f=field: self.update_custom_noise_field(f)
+                    )
+            else:
+                entry = ttk.Entry(self, textvariable=var, width=30)
+                entry.grid(row=row, column=1, sticky="w")
+                entry.bind(
+                    "<FocusOut>", lambda e,
+                    f=field: self.update_custom_noise_field(f)
+                    )
 
             row += 1
         self.progress = ttk.Progressbar(self, maximum=100, mode="determinate")
@@ -744,31 +767,45 @@ class DatasetFrame(ttk.LabelFrame):
             self.dataset["plot_kwargs"][key] = None
             var.set("")
 
-    def update_custom_noise_line(self, *_):
-        amp_str = self.custom_noise_vars["amplitude"].get().strip()
-        freq_str = self.custom_noise_vars["freq_range"].get().strip()
-        color = self.custom_noise_vars["color"].get().strip()
+    def update_custom_noise_field(self, field):
+        if not isinstance(self.dataset.get("custom_noise_line"), dict):
+            self.dataset["custom_noise_line"] = {}
 
-        if not amp_str and not freq_str and not color:
-            self.dataset["custom_noise_line"] = None
-            return
+        line = self.dataset["custom_noise_line"]
+        value = self.custom_noise_vars[field].get().strip()
 
-        try:
-            amp = float(amp_str)
-            freqs = [
-                float(f.strip())
-                for f in freq_str.replace(" ", ",").split(",")
-                if f.strip()
-            ]
-            if len(freqs) != 2:
-                raise ValueError("Need two frequencies")
+        if field == "amplitude":
+            try:
+                line["amplitude"] = float(value)
+            except ValueError:
+                line.pop("amplitude", None)
+                self.custom_noise_vars["amplitude"].set("")
 
-            self.dataset["custom_noise_line"] = {
-                "amplitude": amp,
-                "freq_range": freqs,
-                "color": color or "orange",
-            }
-        except Exception:
+        elif field == "freq_range":
+            try:
+                parts = [
+                    float(x.strip())
+                    for x in value.replace(" ", ",").split(",")
+                    if x.strip()
+                ]
+                if len(parts) == 2:
+                    line["freq_range"] = tuple(parts)
+                else:
+                    raise ValueError
+            except Exception:
+                line.pop("freq_range", None)
+                self.custom_noise_vars["freq_range"].set("")
+
+        elif field == "color":
+            if value.lower() in COLOR_NAMES:
+                line["color"] = value.lower()
+            else:
+                line.pop("color", None)
+                self.custom_noise_vars["color"].set("")
+
+        if (not line.get("amplitude") and
+                not line.get("freq_range") and
+                not line.get("color")):
             self.dataset["custom_noise_line"] = None
 
     def run_this_dataset(self):
@@ -799,9 +836,14 @@ class App(tk.Tk):
         super().__init__()
         self.title("PPSD Plotter GUI")
         self.state('zoomed')
-        icon_path = resource_path("resources/icon.ico")
-        if os.path.exists(icon_path):
-            self.iconbitmap(icon_path)
+        if platform.system() == "Windows":
+            icon_path = resource_path("resources/icon.ico")
+            if os.path.exists(icon_path):
+                self.iconbitmap(icon_path)
+        elif platform.system() == "Linux":
+            icon_path = resource_path("resources/icon.png")
+            if os.path.exists(icon_path):
+                self.iconphoto(False, icon_path)
         self.datasets = [copy.deepcopy(DEFAULT_DATASET)]
         self.selected_dataset_index = None
         self.build_menu()
@@ -1013,7 +1055,14 @@ class App(tk.Tk):
         dialog.geometry("600x400")
         dialog.grab_set()
         dialog.focus_force()
-
+        if platform.system() == "Windows":
+            icon_path = resource_path("resources/icon.ico")
+            if os.path.exists(icon_path):
+                dialog.iconbitmap(icon_path)
+        elif platform.system() == "Linux":
+            icon_path = resource_path("resources/icon.png")
+            if os.path.exists(icon_path):
+                dialog.iconphoto(False, icon_path)
         ttk.Label(dialog, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get(
             "output_folder")).grid(row=0, column=0, sticky="w", **GRID_PAD)
         out_var = tk.StringVar()
@@ -1123,6 +1172,15 @@ class App(tk.Tk):
             )
 
         if action in ["plot", "full"]:
+            cmap_name_or_obj = plot_kwargs.pop("cmap", "pqlx")
+            if isinstance(cmap_name_or_obj, str):
+                if cmap_name_or_obj == "pqlx":
+                    cmap = pqlx
+                else:
+                    cmap = colormaps.get(
+                        cmap_name_or_obj, "viridis")
+            else:
+                cmap = cmap_name_or_obj
             for i, (loc_code, channel) in enumerate(parsed_channels):
                 ch_label = f"{loc_code}.{channel}" if loc_code else channel
                 if loc_code:
@@ -1134,25 +1192,45 @@ class App(tk.Tk):
                     try:
                         st = read(sample)
                         tr = st.select(channel=channel, location=loc_code)[0]
-                        ppsd = PPSD(tr.stats, inv, ppsd_length=int(
-                            ds.get("timewindow", 3600)))
+                        ppsd = PPSD(
+                            tr.stats, inv,
+                            ppsd_length=int(ds.get("timewindow", 3600))
+                            )
 
                         for file in Path(npzfolder).glob("*.npz"):
                             ppsd.add_npz(str(file))
 
-                        cmap_name_or_obj = plot_kwargs.pop("cmap", "pqlx")
-                        if isinstance(cmap_name_or_obj, str):
-                            if cmap_name_or_obj == "pqlx":
-                                cmap = pqlx
-                            else:
-                                cmap = colormaps.get(
-                                    cmap_name_or_obj, "viridis")
-                        else:
-                            cmap = cmap_name_or_obj
-
                         fig = ppsd.plot(cmap=cmap, show=False, **plot_kwargs)
-                        figfile = Path(output_folder) / f"{tr.id}.png"
+                        custom_noise_line = ds.get("custom_noise_line")
+                        if isinstance(custom_noise_line, dict):
+                            amp = float(custom_noise_line.get(
+                                "amplitude", 0.001)
+                                )
+                            freq_range = custom_noise_line.get(
+                                "freq_range", []
+                                )
+                            color = custom_noise_line.get("color", "red")
 
+                            if len(freq_range) == 2 and amp > 0:
+                                freq1, freq2, db = calculate_noise_line(
+                                    amp, tuple(freq_range)
+                                    )
+
+                                if not plot_kwargs.get(
+                                    "xaxis_frequency", True
+                                        ):
+                                    freq1 = 1.0 / freq1 if freq1 != 0 else 0
+                                    freq2 = 1.0 / freq2 if freq2 != 0 else 0
+
+                                ax = fig.axes[0]
+                                ax.plot([freq1, freq2], [db, db],
+                                        color=color,
+                                        lw=2,
+                                        linestyle='--',
+                                        label=f"Noise {amp:.6g} mg")
+                                ax.legend()
+
+                        figfile = Path(output_folder) / f"{tr.id}.png"
                         fig.set_size_inches(figsize)
                         fig.savefig(figfile, dpi=dpi)
                         plt.close(fig)
