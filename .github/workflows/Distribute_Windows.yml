@@ -37,12 +37,12 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Get version from tag
       run: echo "VERSION=${{ github.ref_name }}" | Out-File -FilePath $env:GITHUB_ENV -Append
-    - name: Replace version in setup_gui.py
+    - name: Replace version in setup.py
       run: |
-        (Get-Content setup_gui.py) -replace '__VERSION__', "$env:VERSION" | Set-Content setup_gui.py
+        (Get-Content setup.py) -replace '__VERSION__', "$env:VERSION" | Set-Content setup.py
     - name: Build GUI with cx_Freeze
       run: |
-        python setup_gui.py build
+        python setup.py build
     - name: Rename GUI build output
       run: |
         Move-Item build\PPSD_Plotter_Windows_GUI ("build\PPSD_Plotter_" + $env:VERSION + "_Windows_GUI")

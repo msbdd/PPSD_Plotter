@@ -75,7 +75,7 @@ DEFAULT_PLOT_KWARGS = {
     "show_mean": False,
     "cmap": "pqlx",
     "cumulative": False,
-    "xaxis_frequency": False,
+    "xaxis_frequency": True,
 }
 
 DEFAULT_DATASET = {
@@ -623,6 +623,7 @@ class DatasetFrame(ttk.LabelFrame):
             label = ttk.Label(
                 self, text=label_text
                 )
+            ToolTip(label, PARAM_TOOLTIPS.get(field, ""))
             label.grid(row=row, column=0, sticky="w")
 
             if field == "color":
@@ -1054,9 +1055,10 @@ class App(tk.Tk):
         GRID_PAD = {"padx": 10, "pady": 5}
         dialog = tk.Toplevel(self)
         dialog.title(ALL_SOFTWARE_LABELS[CURRENT_LANG].get("run_all_save"))
-        dialog.geometry("600x400")
+        dialog.geometry("650x500")
         dialog.grab_set()
         dialog.focus_force()
+
         if platform.system() == "Windows":
             icon_path = resource_path("resources/icon.ico")
             if os.path.exists(icon_path):
@@ -1066,10 +1068,55 @@ class App(tk.Tk):
             if os.path.exists(icon_path):
                 icon_image = tk.PhotoImage(file=icon_path)
                 dialog.iconphoto(False, icon_image)
-        ttk.Label(dialog, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get(
+
+        outer_frame = ttk.Frame(dialog)
+        outer_frame.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(outer_frame)
+        scrollbar = ttk.Scrollbar(
+            outer_frame, orient="vertical",
+            command=canvas.yview
+            )
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        window_id = canvas.create_window(
+            (0, 0), window=scrollable_frame,
+            anchor="nw"
+            )
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        def _on_resize(event):
+            canvas.itemconfig(window_id, width=event.width)
+        canvas.bind("<Configure>", _on_resize)
+
+        def _on_mousewheel(event):
+            if platform.system() == "Windows":
+                canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+            elif platform.system() == "Darwin":  # macOS
+                canvas.yview_scroll(-1 * int(event.delta), "units")
+            else:
+                canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all(
+            "<Button-4>", lambda e: canvas.yview_scroll(-1, "units")
+            )
+        canvas.bind_all(
+            "<Button-5>", lambda e: canvas.yview_scroll(1, "units")
+            )
+
+        ttk.Label(scrollable_frame, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get(
             "output_folder")).grid(row=0, column=0, sticky="w", **GRID_PAD)
         out_var = tk.StringVar()
-        ttk.Entry(dialog, textvariable=out_var, width=40).grid(
+        ttk.Entry(scrollable_frame, textvariable=out_var, width=40).grid(
             row=0, column=1, sticky="w", **GRID_PAD)
 
         def browse_folder():
@@ -1077,48 +1124,58 @@ class App(tk.Tk):
             if selected:
                 out_var.set(selected)
                 dialog.focus_force()
+        textlabel = ALL_SOFTWARE_LABELS[CURRENT_LANG].get("browse")
+        ttk.Button(
+            scrollable_frame, text=textlabel,
+            command=browse_folder
+            ).grid(row=0, column=2, **GRID_PAD)
 
-        ttk.Button(dialog, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get(
-            "browse"), command=browse_folder).grid(row=0, column=2, **GRID_PAD)
-
-        ttk.Label(dialog, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get(
+        ttk.Label(scrollable_frame, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get(
             "img_size")).grid(row=1, column=0, sticky="w", **GRID_PAD)
         size_var = tk.StringVar(value="12,8")
-        ttk.Entry(dialog, textvariable=size_var).grid(
+        ttk.Entry(scrollable_frame, textvariable=size_var).grid(
             row=1, column=1, sticky="w", **GRID_PAD)
 
-        ttk.Label(dialog, text="DPI:").grid(
+        ttk.Label(scrollable_frame, text="DPI:").grid(
             row=2, column=0, sticky="w", **GRID_PAD)
         dpi_var = tk.StringVar(value="300")
-        ttk.Entry(dialog, textvariable=dpi_var).grid(
+        ttk.Entry(scrollable_frame, textvariable=dpi_var).grid(
             row=2, column=1, sticky="w", **GRID_PAD)
-
+        textlabel = ALL_SOFTWARE_LABELS[CURRENT_LANG].get("progress")
         ttk.Label(
-            dialog, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get("progress")
-            ).grid(
-            row=3, column=0, columnspan=2, sticky="w", **GRID_PAD
-            )
+            scrollable_frame, text=textlabel
+        ).grid(row=3, column=0, columnspan=2, sticky="w", **GRID_PAD)
 
         progress_bars = []
         status_labels = []
 
         for i in range(len(self.datasets)):
             ttk.Label(
-                dialog,
-                text=(
-                    f"{ALL_SOFTWARE_LABELS[CURRENT_LANG].get('dataset')} {i+1}"
+                scrollable_frame,
+                text=(f"{ALL_SOFTWARE_LABELS[CURRENT_LANG].get('dataset')}"
+                      f" {i+1}"
+                      )
+            ).grid(row=4 + i * 2, column=0, sticky="w", **GRID_PAD)
+
+            bar = ttk.Progressbar(scrollable_frame, maximum=100)
+            bar.grid(
+                row=4 + i * 2, column=1, columnspan=2,
+                sticky="ew", **GRID_PAD
                 )
-                ).grid(
-                    row=4 + i * 2, column=0, sticky="w", **GRID_PAD
+
+            label = ttk.Label(scrollable_frame, text="", foreground="gray")
+            label.grid(
+                row=5 + i * 2, column=0, columnspan=3,
+                sticky="w", **GRID_PAD
                 )
-            bar = ttk.Progressbar(dialog, maximum=100)
-            bar.grid(row=4 + i * 2, column=1,
-                     columnspan=2, sticky="ew", **GRID_PAD)
-            label = ttk.Label(dialog, text="", foreground="gray", )
-            label.grid(row=5 + i * 2, column=0,
-                       columnspan=3, sticky="w", **GRID_PAD)
+
             progress_bars.append(bar)
             status_labels.append(label)
+        textlabel = ALL_SOFTWARE_LABELS[CURRENT_LANG].get("run")
+        run_button = ttk.Button(dialog,
+                                text=textlabel,
+                                command=lambda: run_all())
+        run_button.pack(pady=10)
 
         def run_all():
             try:
@@ -1128,24 +1185,19 @@ class App(tk.Tk):
 
                 for i, dataset in enumerate(self.datasets):
                     def local_callback(
-                            pct, msg, b=progress_bars[i], lbl=status_labels[i]
-                            ):
+                        pct, msg, b=progress_bars[i], lbl=status_labels[i]
+                    ):
                         b["value"] = pct
                         lbl["text"] = msg
                         lbl.update()
 
                     self.run_single_dataset_to_file(
-                        dataset, output_folder,
-                        (width, height), dpi, local_callback
-                        )
+                        dataset, output_folder, (width, height),
+                        dpi, local_callback
+                    )
             except Exception as e:
                 messagebox.showerror("Error", f"Failed: {e}")
             dialog.destroy()
-
-        ttk.Button(dialog, text=ALL_SOFTWARE_LABELS[CURRENT_LANG].get("run"),
-                   command=run_all).grid(
-            row=5 + 2 * len(self.datasets), column=1, pady=10
-        )
 
     def run_single_dataset_to_file(
             self, ds, output_folder, figsize, dpi, callback

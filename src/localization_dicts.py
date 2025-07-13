@@ -40,6 +40,9 @@ PARAM_TOOLTIPS_EN = {
     "cumulative": "Show cumulative distribution.",
     "cumulative_number_of_colors": "Number of colors for cumulative plot.",
     "xaxis_frequency": "Show frequency instead of period on x-axis.",
+    "amplitude": "Amplitude of the custom noise line (in millig, mg)",
+    "freq_range": "Frequency range in Hz (two floats, e.g. 1.0, 10.0)",
+    "color": "Line color (select from the list of available names)"
 }
 
 SOFTWARE_LABELS_EN = {
@@ -112,6 +115,9 @@ PARAM_TOOLTIPS_DE = {
     "cumulative": "Zeigt kumulierte Verteilung.",
     "cumulative_number_of_colors": "Anzahl der Farben für das kumulierte Diagramm.",
     "xaxis_frequency": "Frequenz statt Periode auf der X-Achse anzeigen.",
+    "amplitude": "Amplitude der benutzerdefinierten Rauschlinie (in Millig, mg)",
+    "freq_range": "Frequenzbereich in Hz (zwei Werte, z. B. 1.0, 10.0)",
+    "color": "Linienfarbe (aus der Liste verfügbarer Namen wählen)"
 }
 
 SOFTWARE_LABELS_DE = {
@@ -183,6 +189,9 @@ PARAM_TOOLTIPS_RU = {
     "cumulative": "Показать накопленное распределение.",
     "cumulative_number_of_colors": "Количество цветов для накопленного графика.",
     "xaxis_frequency": "Показать частоту вместо периода по оси X.",
+    "amplitude": "Амплитуда пользовательской линии шума (в миллиg, mg)",
+    "freq_range": "Частотный диапазон в Гц (две величины, например 1.0, 10.0)",
+    "color": "Цвет линии (выберите из списка доступных названий)"
 }
 
 SOFTWARE_LABELS_RU = {
@@ -255,6 +264,9 @@ PARAM_TOOLTIPS_RS = {
     "cumulative": "Prikazuje kumulativnu distribuciju.",
     "cumulative_number_of_colors": "Broj boja za kumulativni grafikon.",
     "xaxis_frequency": "Prikazuj frekvenciju umesto perioda na X osi.",
+    "amplitude": "Amplituda prilagođene linije šuma (u miligima, mg)",
+    "freq_range": "Opseg frekvencije u Hz (dve vrednosti, npr. 1.0, 10.0)",
+    "color": "Boja linije (izaberite iz liste dostupnih naziva)"
 }
 
 SOFTWARE_LABELS_RS = {
@@ -326,6 +338,9 @@ PARAM_TOOLTIPS_TR = {
     "cumulative": "Kümülatif dağılımı göster.",
     "cumulative_number_of_colors": "Kümülatif grafik için renk sayısı.",
     "xaxis_frequency": "X ekseninde periyot yerine frekans göster.",
+    "amplitude": "Özel gürültü çizgisinin genliği (millig cinsinden, mg)",
+    "freq_range": "Frekans aralığı (Hz cinsinden, iki sayı, örn. 1.0, 10.0)",
+    "color": "Çizgi rengi (mevcut isim listesinden seçiniz)"
 }
 
 SOFTWARE_LABELS_TR = {

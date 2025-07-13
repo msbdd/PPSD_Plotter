@@ -14,9 +14,9 @@ This utility automates the calculation, plotting, and export of Power Spectral D
 
 ## TODO:
 
-- Custom plotting function and additional plotting parameters (for example, day/night or a custom noise level over a freq range)
-- Wildcard support
+- Custom plotting function and additional plotting parameters (day/night) (?)
 - Linux building (?)
+- Major refactor to automate all the data and station information collection (?)
 
 ---
 
@@ -49,8 +49,10 @@ python src\gui.py
 
 The utility uses a YAML file to define how each dataset is processed. <br> An example configuration is provided in the ```example``` folder.<br>
 You can pass additional plotting parameters to the ```PPSD.plot()``` function from ObsPy.
-For the full list of supported options, please refer to the [ObsPy documentation](https://docs.obspy.org/packages/autogen/obspy.signal.spectral_estimation.PPSD.plot.html)
+For the full list of supported options, please refer to the [ObsPy documentation](https://docs.obspy.org/packages/autogen/obspy.signal.spectral_estimation.PPSD.plot.html).<br>
+All these parameters are now visible in the GUI.
 
+Added a possibility to plot a custom RMS noise level on the plot.
 
 ## Output Structure
 
