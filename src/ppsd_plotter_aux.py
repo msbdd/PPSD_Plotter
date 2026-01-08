@@ -109,19 +109,24 @@ def filter_npz_files_by_time(npz_files, time_filter):
     if not night_start_str or not night_stop_str:
         return npz_files
 
-    try:
-        # Parse time strings (e.g., "22:00" or "22:00:00")
-        night_start = datetime.strptime(night_start_str, '%H:%M').time()
-        night_stop = datetime.strptime(night_stop_str, '%H:%M').time()
-    except ValueError:
+    # Try parsing with multiple time formats
+    time_formats = ['%H:%M', '%H:%M:%S']
+    night_start = None
+    night_stop = None
+    
+    for fmt in time_formats:
         try:
-            # Try with seconds
-            night_start = datetime.strptime(night_start_str, '%H:%M:%S').time()
-            night_stop = datetime.strptime(night_stop_str, '%H:%M:%S').time()
+            night_start = datetime.strptime(night_start_str, fmt).time()
+            night_stop = datetime.strptime(night_stop_str, fmt).time()
+            break
         except ValueError:
-            print("Warning: Invalid time format in time_filter. "
-                  "Using all files.")
-            return npz_files
+            continue
+    
+    if night_start is None or night_stop is None:
+        print(f"Warning: Invalid time format in time_filter. "
+              f"Expected 'HH:MM' or 'HH:MM:SS', got start='{night_start_str}', "
+              f"stop='{night_stop_str}'. Using all files.")
+        return npz_files
 
     filtered = []
     for file in npz_files:

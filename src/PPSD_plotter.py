@@ -17,6 +17,9 @@ from ppsd_plotter_aux import (
 )
 matplotlib.use("Agg")
 
+# Default PPSD time window in seconds
+DEFAULT_TIME_WINDOW = 3600
+
 
 def load_config(path):
     with open(path, 'r') as f:
@@ -245,7 +248,7 @@ def process_dataset(entry, tw):
 
 def main(config_path):
     config = load_config(config_path)
-    tw = config.get("timewindow", 3600)  # Default to 3600 if not specified
+    tw = config.get("timewindow", DEFAULT_TIME_WINDOW)
     num_workers = config.get("num_workers", 1)
     datasets = config["datasets"]
 
