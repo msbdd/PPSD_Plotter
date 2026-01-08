@@ -292,6 +292,8 @@ def process_dataset(entry, tw):
     channels = entry["channels"]
     output_folder = entry.get("output_folder", folder)
     action = str(entry.get("action", "full"))
+    # Use timewindow from entry if available, otherwise use global tw
+    tw = entry.get("timewindow", tw)
     inv = load_inventory(resp_file)
 
     if not inv:
@@ -363,7 +365,7 @@ def process_dataset(entry, tw):
 
 def main(config_path):
     config = load_config(config_path)
-    tw = config["timewindow"]
+    tw = config.get("timewindow", 3600)  # Default to 3600 if not specified
     num_workers = config.get("num_workers", 1)
     datasets = config["datasets"]
 
