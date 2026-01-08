@@ -180,6 +180,9 @@ PARAM_LABELS_RU = {
     "xaxis_frequency": "Частота по оси X",
     "action": "Действие",
     "timewindow": "Временное окно",
+    "time_filter": "Фильтр времени",
+    "night_start": "Время начала",
+    "night_stop": "Время окончания",
 }
 
 PARAM_TOOLTIPS_RU = {
@@ -203,7 +206,10 @@ PARAM_TOOLTIPS_RU = {
     "xaxis_frequency": "Показать частоту вместо периода по оси X.",
     "amplitude": "Амплитуда пользовательской линии шума (в миллиg, mg)",
     "freq_range": "Частотный диапазон в Гц (две величины, например 1.0, 10.0)",
-    "color": "Цвет линии (выберите из списка доступных названий)"
+    "color": "Цвет линии (выберите из списка доступных названий)",
+    "time_filter": "Фильтровать данные по времени суток (оставьте пустым для использования всех данных)",
+    "night_start": "Время начала в формате ЧЧ:ММ (например, 22:00 для ночного времени)",
+    "night_stop": "Время окончания в формате ЧЧ:ММ (например, 06:00 для ночного времени)",
 }
 
 SOFTWARE_LABELS_RU = {
@@ -255,6 +261,9 @@ PARAM_LABELS_RS = {
     "xaxis_frequency": "X osa: frekvencija",
     "action": "Akcija",
     "timewindow": "Vremenski prozor",
+    "time_filter": "Vremenski filter",
+    "night_start": "Vreme početka",
+    "night_stop": "Vreme završetka",
 }
 
 PARAM_TOOLTIPS_RS = {
@@ -278,7 +287,10 @@ PARAM_TOOLTIPS_RS = {
     "xaxis_frequency": "Prikazuj frekvenciju umesto perioda na X osi.",
     "amplitude": "Amplituda prilagođene linije šuma (u miligima, mg)",
     "freq_range": "Opseg frekvencije u Hz (dve vrednosti, npr. 1.0, 10.0)",
-    "color": "Boja linije (izaberite iz liste dostupnih naziva)"
+    "color": "Boja linije (izaberite iz liste dostupnih naziva)",
+    "time_filter": "Filtriraj podatke po vremenu dana (ostavite prazno za sve podatke)",
+    "night_start": "Vreme početka u formatu HH:MM (npr. 22:00 za noćno vreme)",
+    "night_stop": "Vreme završetka u formatu HH:MM (npr. 06:00 za noćno vreme)",
 }
 
 SOFTWARE_LABELS_RS = {
@@ -329,6 +341,9 @@ PARAM_LABELS_TR = {
     "xaxis_frequency": "X Ekseninde Frekans",
     "action": "İşlem",
     "timewindow": "Zaman Penceresi",
+    "time_filter": "Zaman Filtresi",
+    "night_start": "Başlangıç Zamanı",
+    "night_stop": "Bitiş Zamanı",
 }
 
 PARAM_TOOLTIPS_TR = {
@@ -352,7 +367,10 @@ PARAM_TOOLTIPS_TR = {
     "xaxis_frequency": "X ekseninde periyot yerine frekans göster.",
     "amplitude": "Özel gürültü çizgisinin genliği (millig cinsinden, mg)",
     "freq_range": "Frekans aralığı (Hz cinsinden, iki sayı, örn. 1.0, 10.0)",
-    "color": "Çizgi rengi (mevcut isim listesinden seçiniz)"
+    "color": "Çizgi rengi (mevcut isim listesinden seçiniz)",
+    "time_filter": "Verileri günün saatine göre filtrele (tüm verileri kullanmak için boş bırakın)",
+    "night_start": "Başlangıç zamanı HH:MM formatında (örn. gece için 22:00)",
+    "night_stop": "Bitiş zamanı HH:MM formatında (örn. gece için 06:00)",
 }
 
 SOFTWARE_LABELS_TR = {
