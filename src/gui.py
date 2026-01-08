@@ -92,6 +92,7 @@ DEFAULT_DATASET = {
     "action": "full",
     "timewindow": 3600,
     "plot_kwargs": DEFAULT_PLOT_KWARGS.copy(),
+    "time_filter": None,
 }
 
 ACTIONS = ["plot", "calculate", "full", "convert"]
@@ -614,6 +615,55 @@ class DatasetFrame(ttk.LabelFrame):
                 self.plot_kwargs_vars[key] = var
             row += 1
 
+        # Time Filter section
+        textlabel = PARAM_LABELS.get("time_filter", "Time Filter")
+        label = ttk.Label(self, text=textlabel)
+        label.grid(row=row, column=0, columnspan=2, sticky="w")
+        ToolTip(label, PARAM_TOOLTIPS.get("time_filter", ""))
+        row += 1
+
+        # Initialize time_filter_vars
+        self.time_filter_vars = {
+            "night_start": tk.StringVar(value=""),
+            "night_stop": tk.StringVar(value="")
+        }
+
+        # Load existing time_filter values if present
+        tf = self.dataset.get("time_filter")
+        if isinstance(tf, dict):
+            self.time_filter_vars["night_start"].set(
+                str(tf.get("night_start", ""))
+            )
+            self.time_filter_vars["night_stop"].set(
+                str(tf.get("night_stop", ""))
+            )
+
+        # Night Start Time
+        label = ttk.Label(
+            self, text=PARAM_LABELS.get("night_start", "Start Time") + ":"
+        )
+        label.grid(row=row, column=0, sticky="w")
+        ToolTip(label, PARAM_TOOLTIPS.get("night_start", ""))
+        entry = ttk.Entry(
+            self, textvariable=self.time_filter_vars["night_start"], width=10
+        )
+        entry.grid(row=row, column=1, sticky="w")
+        entry.bind("<FocusOut>", self.update_time_filter)
+        row += 1
+
+        # Night Stop Time
+        label = ttk.Label(
+            self, text=PARAM_LABELS.get("night_stop", "End Time") + ":"
+        )
+        label.grid(row=row, column=0, sticky="w")
+        ToolTip(label, PARAM_TOOLTIPS.get("night_stop", ""))
+        entry = ttk.Entry(
+            self, textvariable=self.time_filter_vars["night_stop"], width=10
+        )
+        entry.grid(row=row, column=1, sticky="w")
+        entry.bind("<FocusOut>", self.update_time_filter)
+        row += 1
+
         textlabel = ALL_SOFTWARE_LABELS[CURRENT_LANG].get("custom_noise")
         label = ttk.Label(self, text=textlabel)
         label.grid(row=row, column=0, columnspan=2, sticky="w")
@@ -825,6 +875,26 @@ class DatasetFrame(ttk.LabelFrame):
                 not line.get("freq_range") and
                 not line.get("color")):
             self.dataset["custom_noise_line"] = None
+
+    def update_time_filter(self, event=None):
+        """Update the time_filter in the dataset."""
+        night_start = self.time_filter_vars["night_start"].get().strip()
+        night_stop = self.time_filter_vars["night_stop"].get().strip()
+        
+        # If both fields are empty, remove time_filter
+        if not night_start and not night_stop:
+            self.dataset["time_filter"] = None
+            return
+        
+        # If both fields are provided, create time_filter dict
+        if night_start and night_stop:
+            self.dataset["time_filter"] = {
+                "night_start": night_start,
+                "night_stop": night_stop
+            }
+        else:
+            # If only one field is provided, don't set filter (invalid)
+            self.dataset["time_filter"] = None
 
     def run_this_dataset(self):
         self.status_label.config(text="Starting...", foreground="orange")

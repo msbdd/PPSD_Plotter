@@ -19,6 +19,9 @@ PARAM_LABELS_EN = {
     "xaxis_frequency": "X Axis Frequency",
     "action": "Action",
     "timewindow": "Timewindow",
+    "time_filter": "Time Filter",
+    "night_start": "Start Time",
+    "night_stop": "End Time",
 }
 
 PARAM_TOOLTIPS_EN = {
@@ -42,7 +45,10 @@ PARAM_TOOLTIPS_EN = {
     "xaxis_frequency": "Show frequency instead of period on x-axis.",
     "amplitude": "Amplitude of the custom noise line (in millig, mg)",
     "freq_range": "Frequency range in Hz (two floats, e.g. 1.0, 10.0)",
-    "color": "Line color (select from the list of available names)"
+    "color": "Line color (select from the list of available names)",
+    "time_filter": "Filter data by time of day (leave empty to use all data)",
+    "night_start": "Start time in HH:MM format (e.g. 22:00 for nighttime)",
+    "night_stop": "End time in HH:MM format (e.g. 06:00 for nighttime)",
 }
 
 SOFTWARE_LABELS_EN = {
@@ -94,6 +100,9 @@ PARAM_LABELS_DE = {
     "xaxis_frequency": "X-Achse: Frequenz",
     "action": "Aktion",
     "timewindow": "Zeitfenster",
+    "time_filter": "Zeitfilter",
+    "night_start": "Startzeit",
+    "night_stop": "Endzeit",
 }
 
 PARAM_TOOLTIPS_DE = {
@@ -117,7 +126,10 @@ PARAM_TOOLTIPS_DE = {
     "xaxis_frequency": "Frequenz statt Periode auf der X-Achse anzeigen.",
     "amplitude": "Amplitude der benutzerdefinierten Rauschlinie (in Millig, mg)",
     "freq_range": "Frequenzbereich in Hz (zwei Werte, z. B. 1.0, 10.0)",
-    "color": "Linienfarbe (aus der Liste verfügbarer Namen wählen)"
+    "color": "Linienfarbe (aus der Liste verfügbarer Namen wählen)",
+    "time_filter": "Daten nach Tageszeit filtern (leer lassen für alle Daten)",
+    "night_start": "Startzeit im Format HH:MM (z. B. 22:00 für Nachtzeit)",
+    "night_stop": "Endzeit im Format HH:MM (z. B. 06:00 für Nachtzeit)",
 }
 
 SOFTWARE_LABELS_DE = {
