@@ -292,31 +292,36 @@ def split_trace_by_time_filter(trace, time_filter):
                 day_boundaries.append((current_time, seg_end, 'night'))
             
         else:
-            # Night spans midnight (common case)
+            # Night spans midnight (common case: e.g., 22:00 to 07:00)
             # Night is FROM night_start TO night_stop (next day)
             # Day is FROM night_stop TO night_start
-            day_start = night_end_utc  # night_stop of current day
-            day_end = night_start_utc   # night_start of current day
             
-            # If we're in the night period from previous day
+            # For the current day:
+            # - Day starts at night_stop (e.g., 07:00)
+            # - Day ends at night_start (e.g., 22:00)
+            # - Night is before day_start and after day_end
+            
+            day_start = UTCDateTime(datetime.combine(current_date, night_stop))
+            day_end = UTCDateTime(datetime.combine(current_date, night_start))
+            
+            # If we're in the night period from previous day (before day_start)
             if current_time < day_start and day_start <= endtime:
                 seg_end = min(day_start, endtime)
                 if seg_end > current_time:
                     day_boundaries.append((current_time, seg_end, 'night'))
                 current_time = seg_end
             
-            # Day period
+            # Day period (from day_start to day_end)
             if current_time < day_end and day_end <= endtime:
                 seg_end = min(day_end, endtime)
                 if seg_end > current_time:
                     day_boundaries.append((current_time, seg_end, 'day'))
                 current_time = seg_end
             
-            # Night period starting at night_start
+            # Night period starting at day_end (after day_end until midnight)
             next_day_start = UTCDateTime(
                 datetime.combine(current_date + timedelta(days=1), dt_time(0, 0))
             )
-            # Night continues until midnight, then we process next day
             seg_end = min(next_day_start, endtime)
             if seg_end > current_time:
                 day_boundaries.append((current_time, seg_end, 'night'))

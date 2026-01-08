@@ -368,6 +368,16 @@ def plot_ppsd_interactive(
 
     # Get all npz files and filter by time if needed
     all_files = list(Path(npzfolder).glob("*.npz"))
+    
+    # Check if we have labeled files (_day or _night)
+    labeled_files = [f for f in all_files if f.stem.endswith('_day') or f.stem.endswith('_night')]
+    unlabeled_files = [f for f in all_files if not (f.stem.endswith('_day') or f.stem.endswith('_night'))]
+    
+    if time_filter and unlabeled_files and not labeled_files:
+        print("Warning: Using time_filter with unlabeled .npz files.")
+        print("For best results, recalculate with action='full' or 'calculate' to split traces at boundaries.")
+        print("Currently using timestamp-based filtering on existing files.")
+    
     filtered_files = filter_npz_files_by_time(all_files, time_filter)
 
     if time_filter:
