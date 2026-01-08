@@ -18,6 +18,11 @@ datasets:
     xaxis_frequency: false
   response: example/IU_ANMO_RESP.xml
   timewindow: 600
+  # Optional: Filter data by time of day (uncomment to enable)
+  # time_filter:
+  #   night_start: "22:00"  # Start time (HH:MM format)
+  #   night_stop: "06:00"   # End time (HH:MM format)
+  # Note: If night_start > night_stop, the range spans midnight
 - action: full
   channels:
   - 00.BH1

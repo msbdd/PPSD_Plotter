@@ -8,6 +8,7 @@ from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
+from datetime import datetime
 matplotlib.use("Agg")
 
 
@@ -72,6 +73,91 @@ def find_miniseed(workdir, channel, location=None):
     return None
 
 
+def parse_npz_timestamp(filename):
+    """
+    Parse timestamp from npz filename.
+    Format: yy-mm-dd_HH-MM-SS.ffffff.npz
+    Returns datetime object or None if parsing fails.
+    """
+    try:
+        stem = Path(filename).stem  # Remove .npz extension
+        # Parse the timestamp: yy-mm-dd_HH-MM-SS.ffffff
+        dt = datetime.strptime(stem, '%y-%m-%d_%H-%M-%S.%f')
+        return dt
+    except Exception:
+        return None
+
+
+def is_time_in_range(dt, start_time, end_time):
+    """
+    Check if datetime's time component falls within start_time and end_time.
+    Handles ranges that span midnight (e.g., 22:00 to 06:00).
+
+    Args:
+        dt: datetime object
+        start_time: time object (e.g., time(22, 0))
+        end_time: time object (e.g., time(6, 0))
+
+    Returns:
+        True if dt.time() is within the range, False otherwise
+    """
+    if start_time is None or end_time is None:
+        return True
+
+    t = dt.time()
+
+    # Normal range (e.g., 06:00 to 22:00)
+    if start_time <= end_time:
+        return start_time <= t <= end_time
+    # Range spans midnight (e.g., 22:00 to 06:00)
+    else:
+        return t >= start_time or t <= end_time
+
+
+def filter_npz_files_by_time(npz_files, time_filter):
+    """
+    Filter npz files based on time_filter configuration.
+
+    Args:
+        npz_files: list of Path objects
+        time_filter: dict with optional 'night_start' and 'night_stop' keys
+                    (e.g., {'night_start': '22:00', 'night_stop': '06:00'})
+
+    Returns:
+        filtered list of Path objects
+    """
+    if not time_filter:
+        return npz_files
+
+    night_start_str = time_filter.get('night_start')
+    night_stop_str = time_filter.get('night_stop')
+
+    if not night_start_str or not night_stop_str:
+        return npz_files
+
+    try:
+        # Parse time strings (e.g., "22:00" or "22:00:00")
+        night_start = datetime.strptime(night_start_str, '%H:%M').time()
+        night_stop = datetime.strptime(night_stop_str, '%H:%M').time()
+    except ValueError:
+        try:
+            # Try with seconds
+            night_start = datetime.strptime(night_start_str, '%H:%M:%S').time()
+            night_stop = datetime.strptime(night_stop_str, '%H:%M:%S').time()
+        except ValueError:
+            print("Warning: Invalid time format in time_filter. "
+                  "Using all files.")
+            return npz_files
+
+    filtered = []
+    for file in npz_files:
+        dt = parse_npz_timestamp(file.name)
+        if dt and is_time_in_range(dt, night_start, night_stop):
+            filtered.append(file)
+
+    return filtered
+
+
 def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
     workdir = Path(workdir)
     Path(npzfolder).mkdir(exist_ok=True)
@@ -104,7 +190,7 @@ def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
 
 def plot_ppsd(
         sampledata, channel, location, inv, npzfolder, output_folder,
-        tw, plot_kwargs=None
+        tw, plot_kwargs=None, time_filter=None
         ):
 
     if plot_kwargs is None:
@@ -125,7 +211,17 @@ def plot_ppsd(
             )
     trace = matches[0]
     ppsd = PPSD(trace.stats, inv, ppsd_length=tw)
-    for file in Path(npzfolder).glob("*.npz"):
+
+    # Get all npz files and filter by time if needed
+    all_files = list(Path(npzfolder).glob("*.npz"))
+    filtered_files = filter_npz_files_by_time(all_files, time_filter)
+
+    if time_filter:
+        nfiltered = len(filtered_files)
+        ntotal = len(all_files)
+        print(f"Time filter applied: {nfiltered}/{ntotal} files selected")
+
+    for file in filtered_files:
         try:
             ppsd.add_npz(str(file))
         except Exception as e:
@@ -252,9 +348,11 @@ def process_dataset(entry, tw):
         if action in ["plot", "full"]:
             sample = find_miniseed(folder, channel, loc_code)
             if sample:
+                time_filter = entry.get("time_filter")
                 plot_ppsd(
                     sample, channel, loc_code, inv, npzfolder,
-                    output_folder, tw, plot_kwargs=plot_kwargs.copy()
+                    output_folder, tw, plot_kwargs=plot_kwargs.copy(),
+                    time_filter=time_filter
                 )
             else:
                 print(f"No valid trace found in {folder} for {channel}")
