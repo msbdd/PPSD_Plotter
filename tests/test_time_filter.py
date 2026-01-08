@@ -4,7 +4,8 @@ from datetime import datetime, time
 from src.ppsd_plotter_aux import (
     parse_npz_timestamp,
     is_time_in_range,
-    filter_npz_files_by_time
+    filter_npz_files_by_time,
+    split_trace_by_time_filter
 )
 
 
@@ -151,3 +152,56 @@ def test_filter_npz_files_by_time_missing_keys():
     time_filter = {'night_stop': '06:00'}
     filtered = filter_npz_files_by_time(files, time_filter)
     assert len(filtered) == 2
+
+
+def test_filter_npz_files_with_labels_nighttime():
+    """Test filtering for files with _night and _day labels (new format)."""
+    files = [
+        Path('25-06-07_07-00-00.019536_day.npz'),
+        Path('25-06-07_23-00-00.019536_night.npz'),
+        Path('25-06-08_02-00-00.019536_night.npz'),
+        Path('25-06-08_12-00-00.019536_day.npz'),
+    ]
+    
+    # Filter for night (22:00 to 06:00)
+    time_filter = {'night_start': '22:00', 'night_stop': '06:00'}
+    filtered = filter_npz_files_by_time(files, time_filter)
+    
+    assert len(filtered) == 2
+    assert Path('25-06-07_23-00-00.019536_night.npz') in filtered
+    assert Path('25-06-08_02-00-00.019536_night.npz') in filtered
+
+
+def test_filter_npz_files_with_labels_daytime():
+    """Test filtering for files with _night and _day labels for daytime."""
+    files = [
+        Path('25-06-07_07-00-00.019536_day.npz'),
+        Path('25-06-07_23-00-00.019536_night.npz'),
+        Path('25-06-08_02-00-00.019536_night.npz'),
+        Path('25-06-08_12-00-00.019536_day.npz'),
+    ]
+    
+    # Filter for day (06:00 to 22:00)
+    time_filter = {'night_start': '06:00', 'night_stop': '22:00'}
+    filtered = filter_npz_files_by_time(files, time_filter)
+    
+    assert len(filtered) == 2
+    assert Path('25-06-07_07-00-00.019536_day.npz') in filtered
+    assert Path('25-06-08_12-00-00.019536_day.npz') in filtered
+
+
+def test_filter_npz_files_mixed_format():
+    """Test filtering with mix of old (no label) and new (with label) formats."""
+    files = [
+        Path('25-06-07_07-00-00.019536.npz'),      # Old format, 07:00 - day
+        Path('25-06-07_23-00-00.019536_night.npz'), # New format, night
+        Path('25-06-08_12-00-00.019536_day.npz'),   # New format, day
+    ]
+    
+    # Filter for night (22:00 to 06:00)
+    time_filter = {'night_start': '22:00', 'night_stop': '06:00'}
+    filtered = filter_npz_files_by_time(files, time_filter)
+    
+    # Should get the new format night file, old format is daytime so excluded
+    assert len(filtered) == 1
+    assert Path('25-06-07_23-00-00.019536_night.npz') in filtered

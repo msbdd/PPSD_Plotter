@@ -211,7 +211,7 @@ def safe_bool(val):
 
 
 def calculate_ppsd(
-        folder, inv, tw, channel_list, callback=None, max_workers=None
+        folder, inv, tw, channel_list, callback=None, max_workers=None, time_filter=None
         ):
     folder = Path(folder)
     files = list(folder.rglob("*"))
@@ -265,7 +265,7 @@ def calculate_ppsd(
 
     with ProcessPoolExecutor(max_workers=cpu_count) as executor:
         futures = [
-            executor.submit(calculate_ppsd_worker, chunk, inv, tw, folder)
+            executor.submit(calculate_ppsd_worker, chunk, inv, tw, folder, time_filter)
             for chunk in chunks
         ]
         for future in as_completed(futures):
@@ -302,6 +302,7 @@ def process_dataset_visual(ds, progress_update_callback):
             tw=int(ds.get("timewindow", 3600)),
             channel_list=channels,
             callback=progress_update_callback,
+            time_filter=ds.get("time_filter"),
         )
 
     for i, (loc_code, channel) in enumerate(parsed_channels):

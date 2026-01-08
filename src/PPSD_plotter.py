@@ -13,7 +13,8 @@ from ppsd_plotter_aux import (
     load_inventory,
     parse_npz_timestamp,
     is_time_in_range,
-    filter_npz_files_by_time
+    filter_npz_files_by_time,
+    split_trace_by_time_filter
 )
 matplotlib.use("Agg")
 
@@ -41,7 +42,7 @@ def safe_bool(val):
     return False
 
 
-def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
+def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw, time_filter=None):
     workdir = Path(workdir)
     Path(npzfolder).mkdir(exist_ok=True)
 
@@ -57,13 +58,23 @@ def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
             st = read(str(file))
             st = st.select(channel=channel, location=location)
             for trace in st:
-                ppsd = PPSD(trace.stats, metadata=inv, ppsd_length=tw)
-                ppsd.add(trace)
-                timestamp = trace.stats.starttime.strftime(
-                    '%y-%m-%d_%H-%M-%S.%f'
+                # Split trace by time filter if needed
+                trace_segments = split_trace_by_time_filter(trace, time_filter)
+                
+                for trace_segment, label in trace_segments:
+                    ppsd = PPSD(trace_segment.stats, metadata=inv, ppsd_length=tw)
+                    ppsd.add(trace_segment)
+                    
+                    # Include label in filename if filtering is applied
+                    timestamp = trace_segment.stats.starttime.strftime(
+                        '%y-%m-%d_%H-%M-%S.%f'
                     )
-                outfile = npzfolder / f"{timestamp}.npz"
-                ppsd.save_npz(str(outfile))
+                    if label != 'all':
+                        outfile = npzfolder / f"{timestamp}_{label}.npz"
+                    else:
+                        outfile = npzfolder / f"{timestamp}.npz"
+                    
+                    ppsd.save_npz(str(outfile))
         except Exception as e:
             print(
                 f"Error processing {file} for channel={channel}"
@@ -228,7 +239,8 @@ def process_dataset(entry, tw):
             npzfolder = Path(folder) / f"npz_{channel}"
 
         if action in ["calculate", "full"]:
-            calculate_ppsd(folder, npzfolder, channel, loc_code, inv, tw)
+            time_filter = entry.get("time_filter")
+            calculate_ppsd(folder, npzfolder, channel, loc_code, inv, tw, time_filter)
 
         if action in ["plot", "full"]:
             sample = find_miniseed(folder, channel, loc_code)
