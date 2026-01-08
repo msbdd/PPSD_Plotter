@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 from datetime import datetime, time
-from src.PPSD_plotter import (
+from src.ppsd_plotter_aux import (
     parse_npz_timestamp,
     is_time_in_range,
     filter_npz_files_by_time
