@@ -20,9 +20,16 @@ import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 import numpy as np
-from ppsd_plotter_aux import calculate_ppsd_worker, load_inventory, \
-                            find_miniseed_channels, find_miniseed, \
-                            calculate_noise_line
+from ppsd_plotter_aux import (
+    calculate_ppsd_worker,
+    load_inventory,
+    find_miniseed_channels,
+    find_miniseed,
+    calculate_noise_line,
+    parse_npz_timestamp,
+    is_time_in_range,
+    filter_npz_files_by_time
+)
 from localization_dicts import ALL_LABELS, ALL_SOFTWARE_LABELS, ALL_TOOLTIPS
 
 matplotlib.use("TkAgg")
@@ -85,6 +92,7 @@ DEFAULT_DATASET = {
     "action": "full",
     "timewindow": 3600,
     "plot_kwargs": DEFAULT_PLOT_KWARGS.copy(),
+    "time_filter": None,
 }
 
 ACTIONS = ["plot", "calculate", "full", "convert"]
@@ -203,7 +211,7 @@ def safe_bool(val):
 
 
 def calculate_ppsd(
-        folder, inv, tw, channel_list, callback=None, max_workers=None
+        folder, inv, tw, channel_list, callback=None, max_workers=None, time_filter=None
         ):
     folder = Path(folder)
     files = list(folder.rglob("*"))
@@ -257,7 +265,7 @@ def calculate_ppsd(
 
     with ProcessPoolExecutor(max_workers=cpu_count) as executor:
         futures = [
-            executor.submit(calculate_ppsd_worker, chunk, inv, tw, folder)
+            executor.submit(calculate_ppsd_worker, chunk, inv, tw, folder, time_filter)
             for chunk in chunks
         ]
         for future in as_completed(futures):
@@ -294,6 +302,7 @@ def process_dataset_visual(ds, progress_update_callback):
             tw=int(ds.get("timewindow", 3600)),
             channel_list=channels,
             callback=progress_update_callback,
+            time_filter=ds.get("time_filter"),
         )
 
     for i, (loc_code, channel) in enumerate(parsed_channels):
@@ -314,7 +323,8 @@ def process_dataset_visual(ds, progress_update_callback):
                     npzfolder,
                     int(ds.get("timewindow", 3600)),
                     plot_kwargs.copy(),
-                    custom_noise_line=ds.get("custom_noise_line")
+                    custom_noise_line=ds.get("custom_noise_line"),
+                    time_filter=ds.get("time_filter")
                 )
             else:
                 progress_update_callback(progress, f"No data for {ch_label}")
@@ -328,7 +338,7 @@ def process_dataset_visual(ds, progress_update_callback):
 def plot_ppsd_interactive(
     sampledata, channel, location, inv,
     npzfolder, tw, plot_kwargs=None,
-    custom_noise_line=None
+    custom_noise_line=None, time_filter=None
 ):
     if plot_kwargs is None:
         plot_kwargs = {}
@@ -356,7 +366,26 @@ def plot_ppsd_interactive(
     trace = matches[0]
     ppsd = PPSD(trace.stats, inv, ppsd_length=tw)
 
-    for file in Path(npzfolder).glob("*.npz"):
+    # Get all npz files and filter by time if needed
+    all_files = list(Path(npzfolder).glob("*.npz"))
+    
+    # Check if we have labeled files (_day or _night)
+    labeled_files = [f for f in all_files if f.stem.endswith('_day') or f.stem.endswith('_night')]
+    unlabeled_files = [f for f in all_files if not (f.stem.endswith('_day') or f.stem.endswith('_night'))]
+    
+    if time_filter and unlabeled_files and not labeled_files:
+        print("Warning: Using time_filter with unlabeled .npz files.")
+        print("For best results, recalculate with action='full' or 'calculate' to split traces at boundaries.")
+        print("Currently using timestamp-based filtering on existing files.")
+    
+    filtered_files = filter_npz_files_by_time(all_files, time_filter)
+
+    if time_filter:
+        nfiltered = len(filtered_files)
+        ntotal = len(all_files)
+        print(f"Time filter applied: {nfiltered}/{ntotal} files selected")
+
+    for file in filtered_files:
         try:
             ppsd.add_npz(str(file))
         except Exception as e:
@@ -597,6 +626,55 @@ class DatasetFrame(ttk.LabelFrame):
                 self.plot_kwargs_vars[key] = var
             row += 1
 
+        # Time Filter section
+        textlabel = PARAM_LABELS.get("time_filter", "Time Filter")
+        label = ttk.Label(self, text=textlabel)
+        label.grid(row=row, column=0, columnspan=2, sticky="w")
+        ToolTip(label, PARAM_TOOLTIPS.get("time_filter", ""))
+        row += 1
+
+        # Initialize time_filter_vars
+        self.time_filter_vars = {
+            "night_start": tk.StringVar(value=""),
+            "night_stop": tk.StringVar(value="")
+        }
+
+        # Load existing time_filter values if present
+        tf = self.dataset.get("time_filter")
+        if isinstance(tf, dict):
+            self.time_filter_vars["night_start"].set(
+                str(tf.get("night_start", ""))
+            )
+            self.time_filter_vars["night_stop"].set(
+                str(tf.get("night_stop", ""))
+            )
+
+        # Night Start Time
+        label = ttk.Label(
+            self, text=PARAM_LABELS.get("night_start", "Start Time") + ":"
+        )
+        label.grid(row=row, column=0, sticky="w")
+        ToolTip(label, PARAM_TOOLTIPS.get("night_start", ""))
+        entry = ttk.Entry(
+            self, textvariable=self.time_filter_vars["night_start"], width=10
+        )
+        entry.grid(row=row, column=1, sticky="w")
+        entry.bind("<FocusOut>", self.update_time_filter)
+        row += 1
+
+        # Night Stop Time
+        label = ttk.Label(
+            self, text=PARAM_LABELS.get("night_stop", "End Time") + ":"
+        )
+        label.grid(row=row, column=0, sticky="w")
+        ToolTip(label, PARAM_TOOLTIPS.get("night_stop", ""))
+        entry = ttk.Entry(
+            self, textvariable=self.time_filter_vars["night_stop"], width=10
+        )
+        entry.grid(row=row, column=1, sticky="w")
+        entry.bind("<FocusOut>", self.update_time_filter)
+        row += 1
+
         textlabel = ALL_SOFTWARE_LABELS[CURRENT_LANG].get("custom_noise")
         label = ttk.Label(self, text=textlabel)
         label.grid(row=row, column=0, columnspan=2, sticky="w")
@@ -808,6 +886,26 @@ class DatasetFrame(ttk.LabelFrame):
                 not line.get("freq_range") and
                 not line.get("color")):
             self.dataset["custom_noise_line"] = None
+
+    def update_time_filter(self, event=None):
+        """Update the time_filter in the dataset."""
+        night_start = self.time_filter_vars["night_start"].get().strip()
+        night_stop = self.time_filter_vars["night_stop"].get().strip()
+        
+        # If both fields are empty, remove time_filter
+        if not night_start and not night_stop:
+            self.dataset["time_filter"] = None
+            return
+        
+        # If both fields are provided, create time_filter dict
+        if night_start and night_stop:
+            self.dataset["time_filter"] = {
+                "night_start": night_start,
+                "night_stop": night_stop
+            }
+        else:
+            # If only one field is provided, don't set filter (invalid)
+            self.dataset["time_filter"] = None
 
     def run_this_dataset(self):
         self.status_label.config(text="Starting...", foreground="orange")

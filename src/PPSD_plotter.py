@@ -8,33 +8,23 @@ from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
+from ppsd_plotter_aux import (
+    find_miniseed,
+    load_inventory,
+    parse_npz_timestamp,
+    is_time_in_range,
+    filter_npz_files_by_time,
+    split_trace_by_time_filter
+)
 matplotlib.use("Agg")
+
+# Default PPSD time window in seconds
+DEFAULT_TIME_WINDOW = 3600
 
 
 def load_config(path):
     with open(path, 'r') as f:
         return yaml.safe_load(f)
-
-
-def load_inventory(resp_file):
-    ext = Path(resp_file).suffix.lower()
-
-    if ext in ['.seed', '.dataless']:
-        fmt = "SEED"
-    elif ext == '.xml':
-        fmt = "STATIONXML"
-    else:
-        fmt = None
-
-    try:
-        if fmt:
-            inv = read_inventory(resp_file, format=fmt)
-        else:
-            inv = read_inventory(resp_file)
-        return inv
-    except Exception as e:
-        print(f"Failed to read inventory {resp_file}: {e}")
-        return
 
 
 def parse_channel(ch_str):
@@ -52,27 +42,7 @@ def safe_bool(val):
     return False
 
 
-def find_miniseed(workdir, channel, location=None):
-    for file in Path(workdir).rglob("*"):
-        if file.suffix.lower() in [".msd", ".miniseed", ".mseed"]:
-            try:
-                st = read(str(file))
-                for tr in st:
-                    if location:
-                        if (
-                            tr.stats.channel == channel and
-                            tr.stats.location == location
-                        ):
-                            return str(file)
-                    else:
-                        if tr.stats.channel == channel:
-                            return str(file)
-            except Exception as e:
-                print(f"Skipping {file} due to error: {e}")
-    return None
-
-
-def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
+def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw, time_filter=None):
     workdir = Path(workdir)
     Path(npzfolder).mkdir(exist_ok=True)
 
@@ -88,13 +58,23 @@ def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
             st = read(str(file))
             st = st.select(channel=channel, location=location)
             for trace in st:
-                ppsd = PPSD(trace.stats, metadata=inv, ppsd_length=tw)
-                ppsd.add(trace)
-                timestamp = trace.stats.starttime.strftime(
-                    '%y-%m-%d_%H-%M-%S.%f'
+                # Split trace by time filter if needed
+                trace_segments = split_trace_by_time_filter(trace, time_filter)
+                
+                for trace_segment, label in trace_segments:
+                    ppsd = PPSD(trace_segment.stats, metadata=inv, ppsd_length=tw)
+                    ppsd.add(trace_segment)
+                    
+                    # Include label in filename if filtering is applied
+                    timestamp = trace_segment.stats.starttime.strftime(
+                        '%y-%m-%d_%H-%M-%S.%f'
                     )
-                outfile = npzfolder / f"{timestamp}.npz"
-                ppsd.save_npz(str(outfile))
+                    if label != 'all':
+                        outfile = npzfolder / f"{timestamp}_{label}.npz"
+                    else:
+                        outfile = npzfolder / f"{timestamp}.npz"
+                    
+                    ppsd.save_npz(str(outfile))
         except Exception as e:
             print(
                 f"Error processing {file} for channel={channel}"
@@ -104,7 +84,7 @@ def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw):
 
 def plot_ppsd(
         sampledata, channel, location, inv, npzfolder, output_folder,
-        tw, plot_kwargs=None
+        tw, plot_kwargs=None, time_filter=None
         ):
 
     if plot_kwargs is None:
@@ -125,7 +105,27 @@ def plot_ppsd(
             )
     trace = matches[0]
     ppsd = PPSD(trace.stats, inv, ppsd_length=tw)
-    for file in Path(npzfolder).glob("*.npz"):
+
+    # Get all npz files and filter by time if needed
+    all_files = list(Path(npzfolder).glob("*.npz"))
+    
+    # Check if we have labeled files (_day or _night)
+    labeled_files = [f for f in all_files if f.stem.endswith('_day') or f.stem.endswith('_night')]
+    unlabeled_files = [f for f in all_files if not (f.stem.endswith('_day') or f.stem.endswith('_night'))]
+    
+    if time_filter and unlabeled_files and not labeled_files:
+        print("Warning: Using time_filter with unlabeled .npz files.")
+        print("For best results, recalculate with 'action: full' or 'action: calculate' to split traces at boundaries.")
+        print("Currently using timestamp-based filtering on existing files.")
+    
+    filtered_files = filter_npz_files_by_time(all_files, time_filter)
+
+    if time_filter:
+        nfiltered = len(filtered_files)
+        ntotal = len(all_files)
+        print(f"Time filter applied: {nfiltered}/{ntotal} files selected")
+
+    for file in filtered_files:
         try:
             ppsd.add_npz(str(file))
         except Exception as e:
@@ -196,6 +196,8 @@ def process_dataset(entry, tw):
     channels = entry["channels"]
     output_folder = entry.get("output_folder", folder)
     action = str(entry.get("action", "full"))
+    # Use timewindow from entry if available, otherwise use global tw
+    tw = entry.get("timewindow", tw)
     inv = load_inventory(resp_file)
 
     if not inv:
@@ -247,14 +249,17 @@ def process_dataset(entry, tw):
             npzfolder = Path(folder) / f"npz_{channel}"
 
         if action in ["calculate", "full"]:
-            calculate_ppsd(folder, npzfolder, channel, loc_code, inv, tw)
+            time_filter = entry.get("time_filter")
+            calculate_ppsd(folder, npzfolder, channel, loc_code, inv, tw, time_filter)
 
         if action in ["plot", "full"]:
             sample = find_miniseed(folder, channel, loc_code)
             if sample:
+                time_filter = entry.get("time_filter")
                 plot_ppsd(
                     sample, channel, loc_code, inv, npzfolder,
-                    output_folder, tw, plot_kwargs=plot_kwargs.copy()
+                    output_folder, tw, plot_kwargs=plot_kwargs.copy(),
+                    time_filter=time_filter
                 )
             else:
                 print(f"No valid trace found in {folder} for {channel}")
@@ -265,7 +270,7 @@ def process_dataset(entry, tw):
 
 def main(config_path):
     config = load_config(config_path)
-    tw = config["timewindow"]
+    tw = config.get("timewindow", DEFAULT_TIME_WINDOW)
     num_workers = config.get("num_workers", 1)
     datasets = config["datasets"]
 

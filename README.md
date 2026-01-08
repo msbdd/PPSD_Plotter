@@ -14,7 +14,6 @@ This utility automates the calculation, plotting, and export of Power Spectral D
 
 ## TODO:
 
-- Custom plotting function and additional plotting parameters (day/night) (?)
 - Linux building (?)
 - Major refactor to automate all the data and station information collection (?)
 
@@ -53,6 +52,27 @@ For the full list of supported options, please refer to the [ObsPy documentation
 All these parameters are now visible in the GUI.
 
 Added a possibility to plot a custom RMS noise level on the plot.
+
+### Time Filtering (Day/Night Mode)
+
+You can optionally filter PPSD data by time of day using the `time_filter` configuration option. This is useful for analyzing noise levels during specific time periods (e.g., daytime vs. nighttime).
+
+**Example configuration:**
+```yaml
+datasets:
+- folder: data/station
+  response: response.xml
+  channels: [BHZ]
+  time_filter:
+    night_start: "22:00"  # Start time in HH:MM format
+    night_stop: "06:00"   # End time in HH:MM format
+```
+
+**Notes:**
+- Time format: `HH:MM` or `HH:MM:SS`
+- If `night_start` > `night_stop`, the range spans midnight (e.g., 22:00 to 06:00 means nighttime)
+- The system calculates PPSD for all data, but only uses filtered .npz files when generating plots
+- Omit `time_filter` to use all data (default behavior)
 
 ## Output Structure
 
