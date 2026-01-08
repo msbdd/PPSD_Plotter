@@ -14,7 +14,6 @@ This utility automates the calculation, plotting, and export of Power Spectral D
 
 ## TODO:
 
-- ~~Custom plotting function and additional plotting parameters (day/night)~~ ✅ **Completed**
 - Linux building (?)
 - Major refactor to automate all the data and station information collection (?)
 
