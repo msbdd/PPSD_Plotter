@@ -28,7 +28,8 @@ from ppsd_plotter_aux import (
     calculate_noise_line,
     parse_npz_timestamp,
     is_time_in_range,
-    filter_npz_files_by_time
+    filter_npz_files_by_time,
+    group_files_by_day,
 )
 from localization_dicts import ALL_LABELS, ALL_SOFTWARE_LABELS, ALL_TOOLTIPS
 
@@ -233,17 +234,7 @@ def calculate_ppsd(
             loc, chan = None, parts[0]
         channels_set.add((loc, chan))
 
-    job_list = []
-    for file in files:
-        try:
-            st = read(str(file))
-        except Exception as e:
-            print(f"Failed reading {file.name}: {e}")
-            continue
-        for loc, chan in channels_set:
-            traces = st.select(channel=chan, location=loc if loc else "")
-            if traces:
-                job_list.append((file, loc, chan))
+    job_list = group_files_by_day(files, channels_set)
 
     if not job_list:
         if callback:

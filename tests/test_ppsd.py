@@ -4,14 +4,18 @@ import shutil
 import sys
 
 
-def test_creates_expected_plots(tmp_path):
-
+def test_creates_expected_plots():
     config_path = Path("example/example_config.yaml")
-    result_dir = Path("example/result")
+    anmo_dir = Path("example/IU.ANMO..D")
+    grfo_dir = Path("example/IU.GRFO..D")
 
-    if result_dir.exists():
-        shutil.rmtree(result_dir)
-    result_dir.mkdir(parents=True, exist_ok=True)
+    # Clean artifacts from any prior run so we test current behavior, not
+    # stale NPZs (which can mismatch the current ppsd_length and fail to load).
+    for d in (anmo_dir, grfo_dir):
+        for npz_dir in d.glob("npz_*"):
+            shutil.rmtree(npz_dir)
+        for png in d.glob("*.png"):
+            png.unlink()
 
     result = subprocess.run(
         [sys.executable, "src/PPSD_plotter.py", str(config_path)],
@@ -23,15 +27,13 @@ def test_creates_expected_plots(tmp_path):
     print("STDERR:\n", result.stderr)
     assert result.returncode == 0, "PPSD_Plotter failed"
 
+    # The bundled ANMO miniseed only contains BHZ; GRFO contains all three.
     expected_files = [
-        "IU.ANMO.00.BH1.png",
-        "IU.ANMO.00.BH2.png",
-        "IU.ANMO.00.BHZ.png",
-        "IU.GRFO.00.BH1.png",
-        "IU.GRFO.00.BH2.png",
-        "IU.GRFO.00.BHZ.png"
+        anmo_dir / "IU.ANMO.00.BHZ.png",
+        grfo_dir / "IU.GRFO.00.BH1.png",
+        grfo_dir / "IU.GRFO.00.BH2.png",
+        grfo_dir / "IU.GRFO.00.BHZ.png",
     ]
 
-    for fname in expected_files:
-        file_path = result_dir / fname
+    for file_path in expected_files:
         assert file_path.exists(), f"Expected file not found: {file_path}"

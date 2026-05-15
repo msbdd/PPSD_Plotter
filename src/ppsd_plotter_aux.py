@@ -1,4 +1,4 @@
-from obspy import read, read_inventory
+from obspy import read, read_inventory, Stream
 import os
 from pathlib import Path
 from obspy.signal import PPSD
@@ -6,6 +6,7 @@ import sys
 import numpy as np
 from datetime import datetime, time as dt_time, timedelta
 from obspy import UTCDateTime
+from obspy.io.mseed.util import get_record_information
 
 
 def find_miniseed_channels(folder):
@@ -46,6 +47,54 @@ def find_miniseed(workdir, channel, location=None):
             except Exception as e:
                 print(f"Skipping {file} due to error: {e}")
     return None
+
+
+def _file_start_day(path):
+    """Return the calendar date of the file's first record, or None on failure.
+
+    Uses a fast header-only read so we can pre-scan large datasets without
+    loading sample data.
+    """
+    try:
+        info = get_record_information(str(path))
+        start = info.get('starttime')
+        if start is not None:
+            return UTCDateTime(start).datetime.date()
+    except Exception:
+        pass
+    try:
+        st = read(str(path), headers_only=True)
+        if len(st) > 0:
+            return st[0].stats.starttime.datetime.date()
+    except Exception as e:
+        print(f"Could not read header from {path}: {e}")
+    return None
+
+
+def group_files_by_day(files, channels):
+    """Group miniseed files into (channel, location, day) buckets.
+
+    Args:
+        files: iterable of Path objects pointing at miniseed files.
+        channels: iterable of (loc, chan) tuples. ``loc`` may be ``None`` or
+                  empty string for "no location code".
+
+    Returns:
+        list of (files_in_bucket, day, loc, chan) tuples. A file whose start
+        day cannot be determined is skipped (with a warning).
+    """
+    files_by_day = {}
+    for f in files:
+        day = _file_start_day(f)
+        if day is None:
+            continue
+        files_by_day.setdefault(day, []).append(f)
+
+    jobs = []
+    for (loc, chan) in channels:
+        for day, day_files in files_by_day.items():
+            jobs.append((day_files, day, loc, chan))
+    return jobs
 
 
 def parse_npz_timestamp(filename):
@@ -352,47 +401,53 @@ def split_trace_by_time_filter(trace, time_filter):
 def calculate_ppsd_worker(job_list, inv_path, tw, folder, time_filter=None):
     inv = load_inventory(inv_path)
 
-    for file, loc, chan in job_list:
-        try:
-            st = read(str(file))
-            st = st.select(channel=chan, location=loc if loc else "")
-            if not st:
-                continue
-        except Exception as e:
-            print(f"Read error in {file.name}: {e}")
+    for files, day, loc, chan in job_list:
+        st = Stream()
+        for f in files:
+            try:
+                s = read(str(f))
+                s = s.select(channel=chan, location=loc if loc else "")
+                st += s
+            except Exception as e:
+                print(f"Read error in {f.name}: {e}")
+        if not st:
             continue
 
-        for tr in st:
-            try:
-                if loc:
-                    npzfolder = (
-                        Path(resource_path(folder)) / f"npz_{loc}_{chan}"
-                    )
-                else:
-                    npzfolder = Path(resource_path(folder)) / f"npz_{chan}"
+        try:
+            st.merge(method=1, interpolation_samples=1)
+        except Exception as e:
+            print(f"Merge error for {chan} {day}: {e}")
+            continue
+        st = st.split()
+        if not st:
+            continue
 
-                npzfolder.mkdir(exist_ok=True)
-                
-                # Split trace by time filter if needed
-                trace_segments = split_trace_by_time_filter(tr, time_filter)
-                
-                for trace_segment, label in trace_segments:
-                    ppsd = PPSD(trace_segment.stats, metadata=inv, ppsd_length=tw)
-                    ppsd.add(trace_segment)
-                    timestamp = trace_segment.stats.starttime.strftime("%y-%m-%d_%H-%M-%S.%f")
-                    
-                    # Include label in filename if filtering is applied
-                    if label != 'all':
-                        outfile = npzfolder / f"{timestamp}_{label}.npz"
-                    else:
-                        outfile = npzfolder / f"{timestamp}.npz"
-                    
-                    ppsd.save_npz(str(outfile))
-            except Exception as e:
-                print(
-                    f"[{os.getpid()}] Error processing {file.name}"
-                    f" trace {tr.id}: {e}"
-                    )
+        if loc:
+            npzfolder = Path(resource_path(folder)) / f"npz_{loc}_{chan}"
+        else:
+            npzfolder = Path(resource_path(folder)) / f"npz_{chan}"
+        npzfolder.mkdir(exist_ok=True)
+
+        try:
+            ref_stats = st[0].stats
+            ppsd_by_label = {}
+            for tr in st:
+                for tr_seg, label in split_trace_by_time_filter(tr, time_filter):
+                    if label not in ppsd_by_label:
+                        ppsd_by_label[label] = PPSD(
+                            ref_stats, metadata=inv, ppsd_length=tw
+                        )
+                    ppsd_by_label[label].add(tr_seg)
+
+            day_str = day.strftime("%y-%m-%d")
+            for label, ppsd in ppsd_by_label.items():
+                suffix = "" if label == "all" else f"_{label}"
+                outfile = npzfolder / f"{day_str}{suffix}.npz"
+                ppsd.save_npz(str(outfile))
+        except Exception as e:
+            print(
+                f"[{os.getpid()}] Error processing {chan} {loc or ''} {day}: {e}"
+            )
 
 
 def load_inventory(resp_file):

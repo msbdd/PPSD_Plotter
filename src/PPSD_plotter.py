@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib
 import yaml
-from obspy import read, read_inventory
+from obspy import read, read_inventory, Stream
 from obspy.signal import PPSD
 from obspy.imaging.cm import pqlx
 from concurrent.futures import ThreadPoolExecutor
@@ -14,7 +14,8 @@ from ppsd_plotter_aux import (
     parse_npz_timestamp,
     is_time_in_range,
     filter_npz_files_by_time,
-    split_trace_by_time_filter
+    split_trace_by_time_filter,
+    group_files_by_day,
 )
 matplotlib.use("Agg")
 
@@ -44,42 +45,59 @@ def safe_bool(val):
 
 def calculate_ppsd(workdir, npzfolder, channel, location, inv, tw, time_filter=None):
     workdir = Path(workdir)
-    Path(npzfolder).mkdir(exist_ok=True)
+    npzfolder = Path(npzfolder)
+    npzfolder.mkdir(exist_ok=True)
 
     files = [
         f for f in workdir.rglob("*")
         if f.suffix.lower() in [".msd", ".miniseed", ".mseed"]
     ]
 
-    for file in tqdm(
-            files, desc=f"[{workdir.name} | {channel}] PSD files", unit="file"
+    jobs = group_files_by_day(files, [(location, channel)])
+
+    for day_files, day, loc, chan in tqdm(
+            jobs, desc=f"[{workdir.name} | {channel}] PSD days", unit="day"
             ):
+        st = Stream()
+        for f in day_files:
+            try:
+                s = read(str(f))
+                s = s.select(channel=chan, location=loc if loc else "")
+                st += s
+            except Exception as e:
+                print(f"Read error in {f.name}: {e}")
+        if not st:
+            continue
+
         try:
-            st = read(str(file))
-            st = st.select(channel=channel, location=location)
-            for trace in st:
-                # Split trace by time filter if needed
-                trace_segments = split_trace_by_time_filter(trace, time_filter)
-                
-                for trace_segment, label in trace_segments:
-                    ppsd = PPSD(trace_segment.stats, metadata=inv, ppsd_length=tw)
-                    ppsd.add(trace_segment)
-                    
-                    # Include label in filename if filtering is applied
-                    timestamp = trace_segment.stats.starttime.strftime(
-                        '%y-%m-%d_%H-%M-%S.%f'
-                    )
-                    if label != 'all':
-                        outfile = npzfolder / f"{timestamp}_{label}.npz"
-                    else:
-                        outfile = npzfolder / f"{timestamp}.npz"
-                    
-                    ppsd.save_npz(str(outfile))
+            st.merge(method=1, interpolation_samples=1)
+        except Exception as e:
+            print(f"Merge error for {chan} {day}: {e}")
+            continue
+        st = st.split()
+        if not st:
+            continue
+
+        try:
+            ref_stats = st[0].stats
+            ppsd_by_label = {}
+            for tr in st:
+                for tr_seg, label in split_trace_by_time_filter(tr, time_filter):
+                    if label not in ppsd_by_label:
+                        ppsd_by_label[label] = PPSD(
+                            ref_stats, metadata=inv, ppsd_length=tw
+                        )
+                    ppsd_by_label[label].add(tr_seg)
+
+            day_str = day.strftime("%y-%m-%d")
+            for label, ppsd in ppsd_by_label.items():
+                suffix = "" if label == "all" else f"_{label}"
+                outfile = npzfolder / f"{day_str}{suffix}.npz"
+                ppsd.save_npz(str(outfile))
         except Exception as e:
             print(
-                f"Error processing {file} for channel={channel}"
-                f"location={location}: {e}"
-                )
+                f"Error processing {chan} location={loc or ''} {day}: {e}"
+            )
 
 
 def plot_ppsd(
