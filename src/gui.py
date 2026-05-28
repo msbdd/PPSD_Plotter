@@ -797,10 +797,9 @@ class DatasetFrame(ttk.LabelFrame):
                     for x in val.replace(" ", ",").split(",")
                     if x.strip()
                 ]
-                if len(parts) == 1:
-                    parsed_val = (parts[0],)
-                else:
-                    parsed_val = tuple(parts[:2])
+                # ObsPy accepts (mag, dist), (min_mag, max_mag, dist),
+                # or (min_mag, max_mag, min_dist, max_dist)
+                parsed_val = tuple(parts[:4])
                 self.dataset["plot_kwargs"][key] = parsed_val
                 var.set(", ".join(map(str, parsed_val)))
             except Exception:
